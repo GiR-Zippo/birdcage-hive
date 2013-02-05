@@ -39,17 +39,15 @@ class Master:
         urlStr = 'http://www.spamhaus.org/drop/drop.txt'
         try:
           fileHandle = urllib2.urlopen(urlStr)
-          str1 = fileHandle.read()
+          self.instring = fileHandle.readlines()
           fileHandle.close()
         except IOError:
           str1 = 'error!'
 
-        offset = 3
-        out = str1.split("\n")[offset:]
-
-        for item in out:
-          if (len(item) == 0):
-            return
-         
-          self.CP.command("300 1 " + item.split(";")[0] + "0 " + str(int((time.time() + 86400))) + " 1", "NULL")
+        offset = 4
+        for self.item in self.instring:
+            if self.item.strip()[0] != ";":
+                #print self.item.split(";")[0].strip()
+                self.CP.command("300 1 " + self.item.split(";")[0].strip() + " 0 " + str(int((time.time() + 86400))) + " 1", "NULL")
+        
         return
