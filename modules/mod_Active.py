@@ -26,7 +26,7 @@ class Fifo:
         if (len(self.first_a) > 0):
             return True
         return False
-    
+
 ## define Checking-Thread
 class Master(threading.Thread):
     check = True;
@@ -36,18 +36,18 @@ class Master(threading.Thread):
     def __init__(self,CP): 
         ## Set the CP
         self.CP = CP
-        
+
         ## Setup the Buffer
         self.buffer = Fifo()
-        
+
         # Do initialization what you have to do
         threading.Thread.__init__(self)
         return
- 
+
     ##If any drones sends an init, this routine would be called
     def initfromdrone(self, args, handler):
         return
-    
+
     def run(self):
         while Master.check:
             self.update()
@@ -55,11 +55,11 @@ class Master(threading.Thread):
 
     def config(self, args, CP):
         return
-    
+
     def command(self,args, handler):
         self.buffer.append(args,handler)
         return
-    
+
     def update(self):
         while (self.buffer.hascontent() == True):
             args, handler = self.buffer.pop()
@@ -71,7 +71,7 @@ class Master(threading.Thread):
     def stop(self):
         Master.check = False
         return
-    
+
     def pause(self):
         Master.wait = True
 

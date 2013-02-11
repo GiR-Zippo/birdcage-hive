@@ -16,10 +16,10 @@ class Master:
     def start(self):
         self.Event()
         return
-    
+
     def initfromdrone(self, args, handler):
         return
-    
+
     def config(self, args, CP):
         Master.CP = CP;
         return
@@ -29,12 +29,12 @@ class Master:
 
     def stop(self):
         return
-    
+
     def Event(self):
         self.refreshList()
         self.CP.InsertEvent((86700 + time.time()), self) 
         return
-    
+
     def refreshList(self):
         urlStr = 'http://feeds.dshield.org/top10-2.txt'
         try:

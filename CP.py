@@ -166,6 +166,9 @@ class CP(object):
     def ToDrone(self, name, args):
         self.m_Sock_out.writeTo(name, args)
 
+    def ToLog(self, args):
+        self.sLog.outLog(args)
+
     #Put incomming cmds on buffer
     def command(self, args,handler):
         self.buffer.append(args,handler)

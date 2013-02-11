@@ -46,16 +46,16 @@ class Fifo:
         if (len(self.first_a) > 0):
             return True
         return False
-    
-class Firewall:   
+
+class Firewall:
     def __init__(self, CP):
         self.whitelist = []
         self.blacklist = []
         self.CP = CP
-        
+
         print "Startup"
         return
-        
+
     #Blacklist control
     def BlackListInsert(self, ip, connections, removetime, local): #001
         for item in self.whitelist:
@@ -64,16 +64,16 @@ class Firewall:
         for item in self.blacklist:
             if (item[0] == ip):
                 return
-            
+
         self.blacklist.append([ip, connections, removetime, local])
         self.ipt_b(ip)
-               
+
         #Send if ins't local
         if (local == 0):
             self.CP.ToSocket("300 1 " + str(ip) + " " + str(connections) + " " + removetime + " " + str(local))
 
         return
-    
+
     def BlackListRemove(self, ip): #002
         for item in self.blacklist:
             if (item[0] == ip):
@@ -86,7 +86,7 @@ class Firewall:
             self.blacklist.remove(item)
             self.ipt_ub(item[0])
         return
-    
+
     def ShowBlacklist(self,handler): #003
         for item in self.blacklist:
             if (handler.ID == "SCK"):
@@ -94,7 +94,7 @@ class Firewall:
                     handler.writeline ("300 1 "+ str(item[0]) + " " + str(item[1]) + " " + str(item[2]) + " " + str(item[3]))
             else:
                 handler.writeline ("" + str(item[0]) + ", " + str(item[1]) + ", " + str(item[2]) + ", " + str(item[3]))
-                
+
     # Whitelist control
     def WhiteListInsert(self, ip, local): #010
         for item in self.whitelist:
@@ -105,9 +105,9 @@ class Firewall:
         self.ipt_whitelist_insert(ip)
         if (local == 0):
             self.CP.ToSocket("300 10 " + str(ip) + " " + str(local))
-        
+
         return
- 
+
     def WhiteListRemove(self, ip): #011
         for item in self.whitelist:
             if (item[0] == ip):
@@ -126,31 +126,31 @@ class Firewall:
                 else:
                     handler.writeline ("" + str(item[0]) + " Local "+ str(item[1]))
         return
-    
+
     def ipt_ub(self,ip):
         os.system ("/sbin/iptables -D INPUT -s " + str(ip) + " -j REJECT")
         os.system ("/sbin/iptables -D FORWARD -s " + str(ip) + " -j REJECT")
         os.system ("/sbin/iptables -D OUTPUT -s " + str(ip) + " -j REJECT")
         return
-    
+
     def ipt_b(self,ip):
         os.system ("/sbin/iptables -I INPUT -s " + str(ip) + " -j REJECT")
         os.system ("/sbin/iptables -I FORWARD -s " + str(ip) + " -j REJECT")
         os.system ("/sbin/iptables -I OUTPUT -s " + str(ip) + " -j REJECT")
         return
-    
+
     def ipt_whitelist_insert(self, ip):
         os.system ("/sbin/iptables -A INPUT -p all -s " + str(ip) + " -j ACCEPT")
         os.system ("/sbin/iptables -A FORWARD -p all -s " + str(ip) + " -j ACCEPT")
         os.system ("/sbin/iptables -A OUTPUT -p all -s " + str(ip) + " -j ACCEPT")
         return
-    
+
     def ipt_whitelist_remove(self,ip):
         os.system ("/sbin/iptables -D INPUT -p all -s " + str(ip) + " -j ACCEPT")
         os.system ("/sbin/iptables -D FORWARD -p all -s " + str(ip) + " -j ACCEPT")
         os.system ("/sbin/iptables -D OUTPUT -p all -s " + str(ip) + " -j ACCEPT")
-        return        
-    
+        return
+
     def Update(self):
         if LOCK.acquire(False): # Non-blocking
             for item in self.blacklist:
@@ -162,8 +162,8 @@ class Firewall:
         else:
             self.CP.sLog.outCritical("Couldn't get the lock. Firewall::Update")
         return
-    
-    
+
+
 ## define Checking-Thread
 class Master(threading.Thread):
     check = True;
@@ -178,17 +178,17 @@ class Master(threading.Thread):
 
         ## Setup the Buffer
         self.buffer = Fifo()
-        
+
         # Do initialization what you have to do
         threading.Thread.__init__(self)
         os.system ("/sbin/iptables --flush")
         self.firewall = Firewall(self.CP)
- 
+
     def initfromdrone(self, args, handler):
         self.firewall.ShowWhitelist(handler);
         self.firewall.ShowBlacklist(handler);
         return
-    
+
     def run(self):
         while Master.check:
             self.update()
@@ -199,9 +199,9 @@ class Master(threading.Thread):
         if (self.initialized == True):
             return
         self.initialized = True
-        
+
         self.m_args = FILEIO.FileIO().ReadLine("./configs/mod_Firewall.conf")
-        
+
         self.temp = self.m_args.split("\n")
         for self.r_item in self.temp:
             self.out = self.r_item.split("=")
@@ -218,14 +218,14 @@ class Master(threading.Thread):
                     for item in t_ip:
                         self.firewall.BlackListInsert(item.strip(), int(0), int(0), int(1))
         return
-    
+
     def command(self,args, handler):
         self.buffer.append(args,handler)
         return
-    
+
     def update(self):
         while (self.buffer.hascontent() == True):
-            
+
             args, handler = self.buffer.pop()
 
             omv = args.split(" ")
@@ -233,6 +233,7 @@ class Master(threading.Thread):
                 #Blacklist
                 if omv[1] == "1":
                     self.firewall.BlackListInsert(omv[2], int(omv[3]), omv[4], int(omv[5]))
+                    self.CP.ToLog("IP: " + omv[2] + " banned.")
                 if omv[1] == "2":
                     self.firewall.BlackListRemove(omv[2])
                 if omv[1] == "3":
@@ -256,7 +257,7 @@ class Master(threading.Thread):
         self.firewall.BlackListRemoveAll()
         Master.check = False
         return
-    
+
     def pause(self):
         Master.wait = True
 
@@ -295,8 +296,7 @@ class CLI_Dict:
                     if (args.split(" ")[1] == "show"):
                         return "300 4"
 
-                
-                
+
             if (args.split(" ")[0] == "whitelist"):
                 if (self.maxlen >= 1):
 

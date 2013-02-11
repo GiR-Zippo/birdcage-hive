@@ -16,10 +16,10 @@ class Master:
     def start(self):
         self.Event()
         return
-    
+
     def initfromdrone(self, args, handler):
         return
-    
+
     def config(self, args, CP):
         Master.CP = CP;
         return
@@ -29,12 +29,12 @@ class Master:
 
     def stop(self):
         return
-    
+
     def Event(self):
         self.refreshList()
         self.CP.InsertEvent((86700 + time.time()), self) 
         return
-    
+
     def refreshList(self):
         urlStr = 'http://www.spamhaus.org/drop/drop.txt'
         try:
@@ -49,5 +49,5 @@ class Master:
             if self.item.strip()[0] != ";":
                 #print self.item.split(";")[0].strip()
                 self.CP.command("300 1 " + self.item.split(";")[0].strip() + " 0 " + str(int((time.time() + 86400))) + " 1", "NULL")
-        
+
         return
