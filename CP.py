@@ -313,7 +313,7 @@ class CP(object):
         except AttributeError:
             self.handler = reload(self.installed_mods[self.installed_mods.index(args)][0])
 
-        self.m_args = FILEIO.FileIO().ReadLine("./configs/ddos.conf")
+        self.m_args = FILEIO.FileIO().ReadLine("./configs/bird.conf")
         args[1] = self.handler.Master(self)
         args[1].config(self.m_args, self);
         args[1].start()

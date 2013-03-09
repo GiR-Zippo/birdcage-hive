@@ -52,15 +52,19 @@ class Master:
                         self.CP.command("300 1 " + self.item[0] + " 0 " + str(int((time.time() + int(self.duration)))) + "0", "NULL")
                     self.procIP.append(self.item[0])
                     self.marked_ip.remove(self.item)
-                return;
+                    print self.item[0]
+                    return
+                return
 
         self.marked_ip.append([ip, "1"])
         return;
+
 
     def refreshList(self):
         self.in_file = open(self.errorlog,"r")
         self.text = self.in_file.readlines()
         self.in_file.close()
+
 
         if len(self.text) < self.lastline:
             self.lastline = 0;

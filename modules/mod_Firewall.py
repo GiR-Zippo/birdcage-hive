@@ -134,6 +134,7 @@ class Firewall:
         return
 
     def ipt_b(self,ip):
+        os.system ("/sbin/iptables -I INPUT -p tcp -s " + str(ip) + " -j REJECT --reject-with tcp-reset")
         os.system ("/sbin/iptables -I INPUT -s " + str(ip) + " -j REJECT")
         os.system ("/sbin/iptables -I FORWARD -s " + str(ip) + " -j REJECT")
         os.system ("/sbin/iptables -I OUTPUT -s " + str(ip) + " -j REJECT")
@@ -162,7 +163,6 @@ class Firewall:
         else:
             self.CP.sLog.outCritical("Couldn't get the lock. Firewall::Update")
         return
-
 
 ## define Checking-Thread
 class Master(threading.Thread):
@@ -217,6 +217,31 @@ class Master(threading.Thread):
                     t_ip = self.out[i].split(",")
                     for item in t_ip:
                         self.firewall.BlackListInsert(item.strip(), int(0), int(0), int(1))
+
+                if item.strip() == "tcp_syncookies":
+                    os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/tcp_syncookies")
+                if item.strip() == "ip_forward":
+                    os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/ip_forward")
+                if item.strip() == "icmp_echo_ignore_broadcasts":
+                    os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts")
+                if item.strip() == "log_martians":
+                    os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/conf/all/log_martians")
+                if item.strip() == "icmp_ignore_bogus_error_responses":
+                    os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses")
+                if item.strip() == "rp_filter":
+                    os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/conf/all/rp_filter")
+                if item.strip() == "send_redirects":
+                    os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/conf/all/send_redirects")
+                if item.strip() == "accept_source_route":
+                    os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/conf/all/accept_source_route")
+                if item.strip() == "icmp-limit":
+                    os.system ("/sbin/iptables -A INPUT  -p icmp -m limit --limit " + self.out[i].strip() + "/second -j ACCEPT")
+                    os.system ("/sbin/iptables -A INPUT  -p icmp -j DROP")
+                if item.strip() == "ping":
+                    if self.out[i].strip() == "0":
+                        os.system ("/sbin/iptables -A INPUT -p icmp --icmp-type echo-request -j REJECT --reject-with icmp-host-unreachable")
+
+
         return
 
     def command(self,args, handler):
@@ -295,6 +320,7 @@ class CLI_Dict:
                     #show the blacklist
                     if (args.split(" ")[1] == "show"):
                         return "300 4"
+
 
 
             if (args.split(" ")[0] == "whitelist"):
