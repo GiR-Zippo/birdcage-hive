@@ -26,53 +26,46 @@ import sys
 import threading
 import time
 
-#Define our Console-Input-Thread
-class InputFromConsole(threading.Thread):
-    n_cli = False;
-    n_cli_acc = None;
+## define Checking-Thread
+class Master(threading.Thread):
+    check = True;
+    interval = 1;
+    CP #Pointer for the CP
 
-    def __init__(self):
-        self.check=True
+    def __init__(self,CP):
+        ## Set the CP
+        self.CP = CP
+
+        # Do initialization what you have to do
         threading.Thread.__init__(self)
         self.active_module = ""
-
         #Zum idend. woher die Anfrage kam
         self.ID = "CLI"
+        return
+
+    ##If any drones sends an init, this routine would be called
+    def initfromdrone(self, args, handler):
+        return
 
     def run(self):
-
         while self.check:
-            if (InputFromConsole.n_cli == False):
-                sys.stdout.write("\x1b7\x1b[%d;%df%s\x1b8" % (27, 0, ""))
-                var = raw_input(self.active_module + "/Command:")
-                sys.stdout.flush()
-                self.command(var)
-            else:
-                if(InputFromConsole.n_cli_acc.refresh() == False):
-                    InputFromConsole.n_cli = False
+            sys.stdout.write("\x1b7\x1b[%d;%df%s\x1b8" % (27, 0, ""))
+            var = raw_input(self.active_module + "/Command:")
+            sys.stdout.flush()
+            self.clicommand(var)
 
-    def stop(self):
-        self.check = False
-
-    # Convert Humanized Commands to Hive
-    def command(self, args):
+    def clicommand(self, args):
         if (args == ""):
             return;
 
         #default commands
         if args == "quit":
-            if (InputFromConsole.n_cli == True):
-                InputFromConsole.n_cli_acc.exit()
-
-            CP.command("TP",self)
+            self.CP.command("TP",self)
             self.writeline("terminating...")
+            self.check = False
             return
 
         #Activate our "new-style" Console
-        if args == "menu":
-            self.activate_n_cli()
-            return
-
         if (self.internalCommands(args) == True and self.active_module  == ""):
             return
 
@@ -80,9 +73,10 @@ class InputFromConsole(threading.Thread):
             self.writeline("Ya have to select a Module via use")
             return
 
-        self.output = CP.GetDictionary(self.active_module, args)
+        self.output = self.CP.GetDictionary(self.active_module, args)
         if (self.output):
-            CP.command (self.output, self)
+            self.CP.command (self.output, self)
+        return
 
     #internalCommands
     def internalCommands(self,args):
@@ -122,7 +116,6 @@ class InputFromConsole(threading.Thread):
         if (args.split(" ")[0] == "use"):
             try:
                 self.active_module = "mod_" + args.split(" ")[1].strip()
-                self.statusbar_n_cli("module", self.active_module)
                 return True
             except IndexError:
                 self.writeline("Ya have to select a Module via use")
@@ -136,19 +129,25 @@ class InputFromConsole(threading.Thread):
                 self.writeline("TestCommand");
                 return True
 
-
-    def activate_n_cli(self):
-        InputFromConsole.n_cli_acc = __import__("N_CLI", globals(), locals(), [], -1).N_CLI()
-        InputFromConsole.n_cli_acc.set_master(self)
-        InputFromConsole.n_cli = True
-
-    def statusbar_n_cli(self,item,args):
-        if(InputFromConsole.n_cli == True):
-            InputFromConsole.n_cli_acc.StatusBar(item,args)
-
     #write a line to our CLI
     def writeline(self,args):
-        if (InputFromConsole.n_cli == True):
-            InputFromConsole.n_cli_acc.writeline(args)
-        else:
-            print(args)
+        print(args)
+        return
+
+    def config(self, args, CP):
+        return
+
+    def command(self,args, handler):
+        return
+
+    def update(self):
+        return
+    def stop(self):
+        Master.check = False
+        return True
+
+    def pause(self):
+        Master.wait = True
+
+    def unpause(self):
+        Master.wait = False

@@ -21,7 +21,7 @@ import time
 # encoding: iso-8859-1
 ## The CommandProcessor
 
-import SOCKS, CLI, FILEIO, LOG
+import SOCKS, FILEIO, LOG
 import sys, os, commands, threading
 from collections import deque
 
@@ -54,7 +54,12 @@ class CP(object):
 
     def __init__(self):
         self.buffer = Fifo()
-        self.sLog = LOG.sLog();
+        self.configfile= "./configs/bird.conf"
+
+        #LogSystem braucht die Config sofort
+        self.m_args = FILEIO.FileIO().ReadLine(self.configfile)
+        self.sLog = LOG.sLog()
+        self.sLog.config(self.m_args,self)
 
         #Installed Mods
         # 0 = Root of Module 
@@ -85,12 +90,8 @@ class CP(object):
         self.m_Sock_out = self.m_Sock.DroneUpdater(self)
         self.m_Sock_out.start()
 
-        CLI.CP = self
-        self.m_CLI = CLI.InputFromConsole()
-        self.m_CLI.start()
-
         #UserMods
-        self.m_args = FILEIO.FileIO().ReadLine("./configs/bird.conf")
+        self.m_args = FILEIO.FileIO().ReadLine(self.configfile)
 
 
         self.temp = self.m_args.split("\n")
@@ -105,7 +106,7 @@ class CP(object):
                 if item.strip() == "modules":
                     t_ip = out[i].split(",")
                     for item in t_ip:
-                        self.m_CLI.writeline("Loading Mods: " + item.strip())
+                        self.sLog.outString("Loading Modules: " + item.strip())
                         self.handler = __import__(item.strip())
 
                         #Woerterbuch suchen...
@@ -115,18 +116,18 @@ class CP(object):
                             self.mod_cli = "None"
 
                         self.installed_mods.append([self.handler,self.handler.Master(self), self.mod_cli, item.strip()])
-                        self.sLog.outLog("Using Module:" + item.strip())
+                        self.sLog.outString("Using Module:" + item.strip())
 
 
     ## Read the config
     def ReadConfig(self):
-        self.m_args = FILEIO.FileIO().ReadLine("./configs/bird.conf");
-        self.m_Sock_listen.config(self.m_args,self);
+        self.m_args = FILEIO.FileIO().ReadLine(self.configfile)
+        self.m_Sock_listen.config(self.m_args,self)
 
         ##send config to our mods
         #for item in self.installed_mods_master:
         for item in self.installed_mods:
-            item[1].config(self.m_args, self);
+            item[1].config(self.m_args, self)
 
     #Here we define our Startup-Setup
     def StartUP(self):
@@ -140,12 +141,13 @@ class CP(object):
     def StopMods(self):
         #UserMods
         for item in self.installed_mods:
-            item[1].stop()
+            if item[1].stop() == True:
+                self.sLog.outString("Stopped: " + item[3])
+                continue
 
-
-        self.m_CLI.stop()
         self.m_Sock_listen.stop()
         self.m_Sock_out.stop()
+        self.sLog.outString("Bye.")
 
     #################################################
     ####                EVENTS                   ####
@@ -167,7 +169,7 @@ class CP(object):
         self.m_Sock_out.writeTo(name, args)
 
     def ToLog(self, args):
-        self.sLog.outLog(args)
+        self.sLog.outString(args)
 
     #Put incomming cmds on buffer
     def command(self, args,handler):
@@ -225,15 +227,15 @@ class CP(object):
 
     def GetModulebyName(self, name):
         for self.out in self.installed_mods:
-            if (self.out[3] == name):
+            if self.out[3] == name:
                 return self.out
-            return None
+        return None
 
     def GetModulebyMaster(self, master):
         for self.out in self.installed_mods:
             if (self.out[1] == name):
                 return self.out
-            return None
+        return None
 
     ##############################################
     # Addressline 001 fuer den internen Gebrauch #
@@ -252,7 +254,8 @@ class CP(object):
             self.i=0
             for self.out in self.installed_mods:
                 if (self.out[3] == args.split(" ")[2]):
-                    self.out[1].stop()
+                    if self.out[1].stop():
+                        self.sLog.outString("Module " + out[3].strip() + " stopped.")
                 self.i=self.i+1
 
         #Reload and Start Module X
@@ -304,20 +307,39 @@ class CP(object):
         #SubAddresse 10 liegt im Socket
 
     def ReloadMod(self,args):
-        self.accessor = args[1]
-        self.accessor.stop()
+        try:
+            self.accessor = args[1]
+        except TypeError:
+            self.sLog.outCritical("Module not found.")
+            return
 
+        if self.accessor.stop():
+            self.sLog.outString("Module " + args[3].strip() + " stopped.")
+
+        self.modname = args[3].strip()
+        self.index = self.installed_mods.index(args)
         try:
             self.accessor.join()
-            self.handler = reload(self.installed_mods[self.installed_mods.index(args)][0])
+            self.handler = reload(self.installed_mods[self.index][0])
+        except AttributeError, RuntimeError:
+            self.handler = reload(self.installed_mods[self.index][0])
+
+        del self.installed_mods[self.index]
+
+        #Woerterbuch suchen...
+        try:
+            self.mod_cli = self.handler.CLI_Dict()
         except AttributeError:
-            self.handler = reload(self.installed_mods[self.installed_mods.index(args)][0])
+            self.mod_cli = "None"
 
         self.m_args = FILEIO.FileIO().ReadLine("./configs/bird.conf")
-        args[1] = self.handler.Master(self)
-        args[1].config(self.m_args, self);
-        args[1].start()
-        self.sLog.outLog("Module reloaded: " + self.installed_mods[self.installed_mods.index(args)][3])
+        self.installed_mods.append([self.handler,self.handler.Master(self), self.mod_cli, self.modname])
+
+        self.accessor = self.GetModulebyName(self.modname)
+        self.accessor[1].config(self.m_args, self)
+        self.accessor[1].start();
+        self.sLog.outString("Module reloaded: " + self.installed_mods[self.installed_mods.index(self.accessor)][3])
+        return
 
     def SendModule(self,args):
         self.name = str(args[3])
@@ -330,7 +352,7 @@ class CP(object):
         try:
             FILEIO.FileIO().WriteToFileAsync(self.name, args, 'w')
             self.ReloadMod(entry)
-            self.sLog.outLog("Recived newer Version of Module: " + self.name)
+            self.sLog.outString("Recived newer Version of Module: " + self.name)
         except IOError:
             pass
 
@@ -343,7 +365,7 @@ class CP(object):
                     if (self.dict):
                         return self.dict
                 except AttributeError:
-                    self.m_CLI.writeline("This Module has no Commands!")
+                    self.sLog.outString("This Module has no Commands!", False)
 
             self.i=self.i+1
 

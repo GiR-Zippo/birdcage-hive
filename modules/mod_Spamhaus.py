@@ -28,7 +28,7 @@ class Master:
         return
 
     def stop(self):
-        return
+        return True;
 
     def Event(self):
         self.refreshList()
@@ -49,5 +49,4 @@ class Master:
             if self.item.strip()[0] != ";":
                 #print self.item.split(";")[0].strip()
                 self.CP.command("300 1 " + self.item.split(";")[0].strip() + " 0 " + str(int((time.time() + 86400))) + " 1", "NULL")
-
         return

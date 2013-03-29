@@ -70,7 +70,7 @@ class Master(threading.Thread):
         return
     def stop(self):
         Master.check = False
-        return
+        return True
 
     def pause(self):
         Master.wait = True

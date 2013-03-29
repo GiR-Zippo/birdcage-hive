@@ -36,7 +36,7 @@ class Master:
         return
 
     def stop(self):
-        return
+        return True;
 
     def Event(self):
         #DO SOMETHING

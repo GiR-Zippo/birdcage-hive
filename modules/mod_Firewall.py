@@ -23,7 +23,7 @@ from collections import deque
 
 # BaseAddress
 address = "300"
-m_version ="0.1"
+m_version ="0.2"
 LOCK = threading.Lock()
 
 #The FIFO-Buffer for incomming commands
@@ -53,7 +53,7 @@ class Firewall:
         self.blacklist = []
         self.CP = CP
 
-        print "Startup"
+        CP.sLog.outString("Starting Firewall")
         return
 
     #Blacklist control
@@ -67,7 +67,7 @@ class Firewall:
 
         self.blacklist.append([ip, connections, removetime, local])
         self.ipt_b(ip)
-
+        self.CP.ToLog("IP: " + str(ip) + " banned.")
         #Send if ins't local
         if (local == 0):
             self.CP.ToSocket("300 1 " + str(ip) + " " + str(connections) + " " + removetime + " " + str(local))
@@ -204,6 +204,12 @@ class Master(threading.Thread):
 
         self.temp = self.m_args.split("\n")
         for self.r_item in self.temp:
+            try:
+                if self.r_item[0] == "#":
+                    continue
+            except IndexError:
+                continue
+
             self.out = self.r_item.split("=")
             i=0
             for item in self.out:
@@ -240,8 +246,13 @@ class Master(threading.Thread):
                 if item.strip() == "ping":
                     if self.out[i].strip() == "0":
                         os.system ("/sbin/iptables -A INPUT -p icmp --icmp-type echo-request -j REJECT --reject-with icmp-host-unreachable")
-
-
+                if item.strip() == "conn-limit-log":
+                    if int(self.out[i].strip()) > 0:
+                        os.system ("/sbin/iptables -A INPUT -p udp -m connlimit --connlimit-above " + self.out[i].strip() + " -j LOG --log-level 4 --log-prefix 'UDP-In " + self.out[i].strip() + "/m '")
+                        os.system ("/sbin/iptables -A INPUT -p tcp --syn  -m connlimit --connlimit-above " + self.out[i].strip() + " -j LOG --log-level 4 --log-prefix 'TCP-In " + self.out[i].strip() + "/m '")                    
+                if item.strip() == "conn-limit":
+                    os.system ("/sbin/iptables -A INPUT -p udp -m connlimit --connlimit-above " + self.out[i].strip() + " -j REJECT")
+                    os.system ("/sbin/iptables -A INPUT -p tcp --syn  -m connlimit --connlimit-above " + self.out[i].strip() + " -j REJECT --reject-with tcp-reset")
         return
 
     def command(self,args, handler):
@@ -258,7 +269,6 @@ class Master(threading.Thread):
                 #Blacklist
                 if omv[1] == "1":
                     self.firewall.BlackListInsert(omv[2], int(omv[3]), omv[4], int(omv[5]))
-                    self.CP.ToLog("IP: " + omv[2] + " banned.")
                 if omv[1] == "2":
                     self.firewall.BlackListRemove(omv[2])
                 if omv[1] == "3":
@@ -281,7 +291,7 @@ class Master(threading.Thread):
     def stop(self):
         self.firewall.BlackListRemoveAll()
         Master.check = False
-        return
+        return True
 
     def pause(self):
         Master.wait = True
@@ -289,13 +299,14 @@ class Master(threading.Thread):
     def unpause(self):
         Master.wait = False
 
-
-
 #CLI Dictionary
 class CLI_Dict:
     def get(self,args):
         try:
             self.maxlen = len(args.split(" ")) - 1
+            if (args.split(" ")[0] == "version"):
+                print (m_version)
+                return
             if (args.split(" ")[0] == "blacklist"):
                 if (self.maxlen >= 1):
                     #Insert local (ip,connection)
@@ -320,8 +331,6 @@ class CLI_Dict:
                     #show the blacklist
                     if (args.split(" ")[1] == "show"):
                         return "300 4"
-
-
 
             if (args.split(" ")[0] == "whitelist"):
                 if (self.maxlen >= 1):

@@ -24,13 +24,41 @@ class sLog: #(object):
     _lock = threading.Lock()
 
     def __init__(self):
+        self.console_critical = False
+        self.console_info = False
         return
 
-    def outCritical(self, args):
-        self.WriteLine(" [CRITICAL] ", args)
+    def config(self, args, CP):
+        self.temp = args.split("\n")
+        for self.r_item in self.temp:
+            try:
+                if self.r_item[0] == "#":
+                    continue
+            except IndexError:
+                continue
 
-    def outLog(self, args):
-        self.WriteLine(" [INFO] ", args)
+            self.out = self.r_item.split("=")
+            i=0
+            for item in self.out:
+                i=i+1
+                if item.strip() == "LOG-Critical":
+                    if self.out[i].strip() == "1":
+                        self.console_critical = True
+                if item.strip() == "LOG-Info":
+                    if self.out[i].strip() == "1":
+                        self.console_info = True
+
+    def outCritical(self, args, toFile = True):
+        if (toFile == True):
+            self.WriteLine(" [CRITICAL] ", args)
+        if self.console_critical == True:
+            print args
+
+    def outString(self, args, toFile = True):
+        if (toFile == True):
+            self.WriteLine(" [INFO] ", args)
+        if self.console_info == True:
+            print args
 
     def WriteLine(self,ct, args):
         self.file = open("Hive.log", 'a')
