@@ -41,11 +41,11 @@ class FileChecker:
         for self.ip, self.count in self.marked_ip:
             if (self.ip == ip):
                 self.marked_ip[self.marked_ip.index([self.ip, self.count])] = [self.ip, (self.count + 1)]
-                if (self.count > count):
+                if (int(self.count) >= int(count)):
                     if (self.duration == 0):
-                        self.CP.command("300 1 " + self.ip + " 0 0 0", "NULL")
+                        Master.CP.command("300 1 " + self.ip + " 0 0 0", "NULL")
                     else:
-                        self.CP.command("300 1 " + self.ip + " 0 " + str(int((time.time() + int(duration)))) + " 0", "NULL")
+                        Master.CP.command("300 1 " + self.ip + " 0 " + str(int((time.time() + int(duration)))) + " 0", "NULL")
                         del self.marked_ip[self.marked_ip.index([self.ip, (self.count +1)])]
                 return
 
@@ -66,7 +66,6 @@ class FileChecker:
             
             for self.regex, self.position, self.count, self.duration in self.errreg:
                 if self.regex in self.line:
-                    print self.errorlog
                     self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[self.position]
                     self.checkip(self.fip, self.count, self.duration)
                 
