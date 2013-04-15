@@ -86,11 +86,11 @@ class Master(threading.Thread):
             try:
                 if (self.omv[1] == "modules"):
                     self.out = "001 1";
-                    CP.command(self.out,self)
+                    self.CP.command(self.out,self)
                     return True
                 elif (self.omv[1] == "drones"):
                     self.out = "001 7";
-                    CP.command(self.out,self)
+                    self.CP.command(self.out,self)
                     return True
             except IndexError:
                 self.writeline("List what? Would ya like to see the modules?")
@@ -107,7 +107,7 @@ class Master(threading.Thread):
                     self.out = "001 4 " + self.omv[2];
                 elif (self.omv[1].strip() == "export-all"):
                     self.out = "001 6"
-                CP.command(self.out,self)
+                self.CP.command(self.out,self)
                 return True
             except IndexError:
                 self.writeline("Ya have to type in a modulename")
@@ -123,7 +123,7 @@ class Master(threading.Thread):
 
         if (args.split(" ")[0] == "cli_test"):
             try:
-                CP.command("001 8 " + args.split(" ")[1] + " "+  args.split(" ")[2], self)
+                self.CP.command("001 8 " + args.split(" ")[1] + " "+  args.split(" ")[2], self)
                 return True
             except IndexError:
                 self.writeline("TestCommand");

@@ -93,7 +93,6 @@ class CP(object):
         #UserMods
         self.m_args = FILEIO.FileIO().ReadLine(self.configfile)
 
-
         self.temp = self.m_args.split("\n")
         for str in self.temp:
             out = str.split("=")
@@ -157,6 +156,18 @@ class CP(object):
         sorted(self.installed_mods_timed_event, key=lambda timer: timer[0])
         return
 
+    def CheckEvent(self):
+        try:
+            if self.installed_mods_timed_event:
+                for self.m_timer, self.item in self.installed_mods_timed_event:
+                    if (self.m_timer <= time.time()):
+                        del self.installed_mods_timed_event[self.installed_mods_timed_event.index([self.m_timer, self.item])]
+                        self.item.Event()
+                        return
+                    return
+        except IndexError:
+            pass
+
     #Alert CLI
     def ToConsole(self,args):
         self.m_CLI.writeline(args)
@@ -181,12 +192,7 @@ class CP(object):
         #    self.sLog.outCritical("Couldn't get the lock. Maybe next time")
 
     def refresh(self):
-        try:
-            if (self.installed_mods_timed_event[0][0] <= time.time()):
-                self.installed_mods_timed_event[0][1].Event()
-                del (self.installed_mods_timed_event[0])
-        except IndexError:
-            pass
+        self.CheckEvent()
 
         while (self.buffer.hascontent() == True):
             args, handler = self.buffer.pop()
@@ -209,7 +215,7 @@ class CP(object):
             #Check if we've got an address instead of junk
             try:
                 if (int(args.split(" ")[0]) == 1):
-                    self.Internal_Commands(args)
+                    self.Internal_Commands(args, handler)
 
                 #module commandhandler
                 for item in self.installed_mods:
@@ -224,6 +230,9 @@ class CP(object):
                 #LOCK.release()
             #else:
                 #self.sLog.outCritical("Couldn't get the lock. Maybe next time")
+
+    def GetInstalledMods(self):
+        return self.installed_mods
 
     def GetModulebyName(self, name):
         for self.out in self.installed_mods:
@@ -241,13 +250,13 @@ class CP(object):
     # Addressline 001 fuer den internen Gebrauch #
     ##############################################
 
-    def Internal_Commands(self,args):
+    def Internal_Commands(self,args,handler):
         #List all Mods we are using
         if (args.split(" ")[1] == "1"):
             for self.out in self.installed_mods:
-                 self.m_CLI.writeline(self.out[3])
+                 handler.writeline(self.out[3])
             for self.out in self.installed_mods_timed_event:
-                self.m_CLI.writeline(str(self.out[0]) + " " + str(self.out[1]))
+                handler.writeline(str(self.out[0]) + " " + str(self.out[1]))
 
         #Stop module X
         if (args.split(" ")[1] == "2"):
@@ -289,7 +298,7 @@ class CP(object):
         #List all Authed and Connected Drones
         if (args.split(" ")[1]=="7"):
             for self.out in self.m_Sock.DroneUpdater.KnownDrones_Name:
-                self.m_CLI.writeline(self.out)
+                handler.writeline(self.out)
 
         #SendFile to Drone
         #Drone, Source, Target

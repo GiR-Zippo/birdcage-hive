@@ -243,6 +243,17 @@ class Master(threading.Thread):
                 if item.strip() == "icmp-limit":
                     os.system ("/sbin/iptables -A INPUT  -p icmp -m limit --limit " + self.out[i].strip() + "/second -j ACCEPT")
                     os.system ("/sbin/iptables -A INPUT  -p icmp -j DROP")
+                if item.strip() == "portscan-detection":
+                    # These rules add scanners to the portscan list, and log the attempt.
+                    os.system ('/sbin/iptables -A INPUT   -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix "Portscan:"')
+                    os.system ("/sbin/iptables -A INPUT   -p tcp -m tcp --dport 139 -m recent --name portscan --set -j DROP")
+                    os.system ('/sbin/iptables -A FORWARD -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix "Portscan:"')
+                    os.system ("/sbin/iptables -A FORWARD -p tcp -m tcp --dport 139 -m recent --name portscan --set -j DROP")
+                if item.strip() == "portscan-ban-time":
+                    os.system ("/sbin/iptables -A INPUT   -m recent --name portscan --rcheck --seconds %s -j DROP" % (self.out[i].strip()))
+                    os.system ("/sbin/iptables -A FORWARD -m recent --name portscan --rcheck --seconds %s -j DROP" % (self.out[i].strip()))
+                    os.system ("/sbin/iptables -A INPUT   -m recent --name portscan --remove")
+                    os.system ("/sbin/iptables -A FORWARD -m recent --name portscan --remove")
                 if item.strip() == "ping":
                     if self.out[i].strip() == "0":
                         os.system ("/sbin/iptables -A INPUT -p icmp --icmp-type echo-request -j REJECT --reject-with icmp-host-unreachable")

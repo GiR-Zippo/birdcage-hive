@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python
 
 # encoding: iso-8859-1
 

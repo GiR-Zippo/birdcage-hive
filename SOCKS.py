@@ -207,7 +207,7 @@ class Listener(threading.Thread):
         threading.Thread.__init__(self)
 
         HOST, PORT = "0.0.0.0", InPort
-        self. server = SocketServer.UDPServer((HOST, PORT), UDP_Listener)
+        self.server = SocketServer.UDPServer((HOST, PORT), UDP_Listener)
 
     def run(self):
         self.server.serve_forever()
