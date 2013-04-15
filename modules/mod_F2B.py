@@ -126,7 +126,7 @@ class Master(threading.Thread):
         return
 
     def AppendRule(self, name, regex, count, position, duration):
-        print 'Name: %s \nRegEx: "%s" \nCount: %s \nPos: %s \nDuration: %s\n' % (name, regex, count, position, duration)
+        #print 'Name: %s \nRegEx: "%s" \nCount: %s \nPos: %s \nDuration: %s\n' % (name, regex, count, position, duration)
         for self.Name, self.Class in self.Filter:
             if (self.Name == name):
                 self.Class.insertFilter(regex, count, position, duration)
