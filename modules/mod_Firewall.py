@@ -79,6 +79,7 @@ class Firewall:
             if (item[0] == ip):
                 self.blacklist.remove(item)
                 self.ipt_ub(ip)
+                self.CP.ToLog("IP: " + str(ip) + " unbanned.")
         return
 
     def BlackListRemoveAll(self):
@@ -128,6 +129,7 @@ class Firewall:
         return
 
     def ipt_ub(self,ip):
+        os.system ("/sbin/iptables -D INPUT -p tcp -s " + str(ip) + " -j REJECT --reject-with tcp-reset")
         os.system ("/sbin/iptables -D INPUT -s " + str(ip) + " -j REJECT")
         os.system ("/sbin/iptables -D FORWARD -s " + str(ip) + " -j REJECT")
         os.system ("/sbin/iptables -D OUTPUT -s " + str(ip) + " -j REJECT")
@@ -154,11 +156,11 @@ class Firewall:
 
     def Update(self):
         if LOCK.acquire(False): # Non-blocking
-            for item in self.blacklist:
-                if (item[2] <> 0):
-                    if (item[2] <= time.time()):
-                        self.BlackListRemove(item[0])
-                        print (str(item[2]) + " " + str(time.time()))
+            for self.ip, self.connections, self.removetime, self.local in self.blacklist:
+                if (int(self.removetime) == 0):
+                    continue
+                if (float(self.removetime) < float(time.time())):
+                    self.BlackListRemove(self.ip)
             LOCK.release()
         else:
             self.CP.sLog.outCritical("Couldn't get the lock. Firewall::Update")
@@ -323,13 +325,13 @@ class CLI_Dict:
                     #Insert local (ip,connection)
                     if (args.split(" ")[1] == "insert"):
                         try:
-                            return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() +86400)))  + " 1";
+                            return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() + int(args.split(" ")[4].strip()))))  + " 1";
                         except IndexError:
                             return "300 1 " + args.split(" ")[2].strip()  + " 0 " + str(int((time.time() +86400))) + " 1";
                     #Insert global (ip,connection)
                     if (args.split(" ")[1] == "ginsert"):
                         try:
-                            return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() +86400)))  + " 0";
+                            return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() + int(args.split(" ")[4].strip()))))  + " 0";
                         except IndexError:
                             return "300 1 " + args.split(" ")[2].strip() + " 0 " + str(int((time.time() +86400))) + " 0";
 

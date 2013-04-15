@@ -20,7 +20,7 @@
 import urllib2, CP, time, threading, sys, os, commands, re
 address = "0000" #NONE
 m_version ="0.1"
-
+LOCK = threading.Lock()
 
 class FileChecker:
     def __init__(self, CP, logfile):
@@ -44,8 +44,6 @@ class FileChecker:
                     self.marked_ip[self.marked_ip.index([self.ip, self.count])] = [self.ip, (self.count + 1)]
                     return
                 if (int(self.count) == int(count)):
-                    print self.ip
-                    print self.count
                     if (int(self.duration) == 0):
                         Master.CP.command("300 1 " + self.ip + " 0 0 0", "NULL")
                         self.marked_ip[self.marked_ip.index([self.ip, self.count])] = [self.ip, (self.count + 1)]
@@ -71,23 +69,21 @@ class FileChecker:
             
             for self.regex, self.position, self.count, self.duration in self.errreg:
                 if self.regex in self.line:
-                    self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[self.position]
+                    self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
                     self.checkip(self.fip, self.count, self.duration)
                 
         self.seek = self.fobj.tell()
         self.fobj.close()
         return
 
-class Master:
+class Master(threading.Thread):
+    check = True;
     CP #Pointer for the CP
     def __init__(self,CP):
         ## Set the CP
         self.CP = CP       
         self.Filter = []
-
-    def start(self):
-        self.Event()
-        return
+        threading.Thread.__init__(self)
 
     def initfromdrone(self, args, handler):
         return
@@ -112,7 +108,7 @@ class Master:
                 if (self.line.strip().find("Bantime") != -1):
                     self.btime = self.line.strip().replace(" ", "").split('=')[1]
                 if (self.line.strip().find("IPPosition") != -1):
-                    self.btime = self.line.strip().replace(" ", "").split('=')[1]
+                    self.IPPosition = self.line.strip().replace(" ", "").split('=')[1]
                 if (self.line.strip().find("Count") != -1):
                     self.count = self.line.strip().replace(" ", "").split('=')[1]
                 if (self.line.strip().find("Regex =") != -1):
@@ -130,7 +126,7 @@ class Master:
         return
 
     def AppendRule(self, name, regex, count, position, duration):
-        #print 'Name: %s \nRegEx: "%s" \nCount: %s \nPos: %s \nDuration: %s\n' % (name, regex, count, position, duration)
+        print 'Name: %s \nRegEx: "%s" \nCount: %s \nPos: %s \nDuration: %s\n' % (name, regex, count, position, duration)
         for self.Name, self.Class in self.Filter:
             if (self.Name == name):
                 self.Class.insertFilter(regex, count, position, duration)
@@ -140,13 +136,17 @@ class Master:
         return
 
     def stop(self):
+        Master.check = False
         return True
 
-    def Event(self):
-        for self.Name, self.Class in self.Filter:
-            self.Class.refresh()
-        self.CP.InsertEvent((5 + time.time()), self) 
-        return
+    def pause(self):
+        Master.wait = True
 
+    def unpause(self):
+        Master.wait = False
 
-
+    def run(self):
+        while Master.check:
+            for self.Name, self.Class in self.Filter:
+                self.Class.refresh()
+            time.sleep(3)
