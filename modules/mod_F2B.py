@@ -40,13 +40,18 @@ class FileChecker:
     def checkip(self, ip, count, duration):
         for self.ip, self.count in self.marked_ip:
             if (self.ip == ip):
-                self.marked_ip[self.marked_ip.index([self.ip, self.count])] = [self.ip, (self.count + 1)]
-                if (int(self.count) >= int(count)):
-                    if (self.duration == 0):
+                if (int(count) > int(self.count)):
+                    self.marked_ip[self.marked_ip.index([self.ip, self.count])] = [self.ip, (self.count + 1)]
+                    return
+                if (int(self.count) == int(count)):
+                    print self.ip
+                    print self.count
+                    if (int(self.duration) == 0):
                         Master.CP.command("300 1 " + self.ip + " 0 0 0", "NULL")
+                        self.marked_ip[self.marked_ip.index([self.ip, self.count])] = [self.ip, (self.count + 1)]
                     else:
                         Master.CP.command("300 1 " + self.ip + " 0 " + str(int((time.time() + int(duration)))) + " 0", "NULL")
-                        del self.marked_ip[self.marked_ip.index([self.ip, (self.count +1)])]
+                        del self.marked_ip[self.marked_ip.index([self.ip, (self.count)])]
                 return
 
         self.marked_ip.append([ip, 1])
