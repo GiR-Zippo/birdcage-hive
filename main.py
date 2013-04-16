@@ -3,7 +3,7 @@
 # encoding: iso-8859-1
 
 #
-# Copyright (C) 20011-2012 by Booksize
+# Copyright (C) 20011-2013 by Booksize
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -26,7 +26,7 @@ __date__ ="$17.09.2011 17:31:44$"
 
 if __name__ == "__main__":
     ##Startup
-    print "  Birdcage V0.5b Hive-Edition"
+    print "  Birdcage V0.6a Hive-Edition"
     print ""
     print "          ___(__)___"
     print "         /          \     "

@@ -1,7 +1,7 @@
 # encoding: iso-8859-1
 
 #
-# Copyright (C) 20011-2012 by Booksize
+# Copyright (C) 20011-2013 by Booksize
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
