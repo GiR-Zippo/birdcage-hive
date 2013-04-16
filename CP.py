@@ -27,7 +27,40 @@ from collections import deque
 
 LOCK = threading.Lock()
 
-#The FIFO-Buffer for incomming commands
+#################################################
+####                EVENTS                   ####
+#################################################
+class Events(threading.Thread):
+    def __init__(self):
+        self.container = []
+        self.check = True
+        threading.Thread.__init__(self)
+        return
+
+    def Insert(self, eTime, eClass):
+        self.container.append([eTime, eClass])
+        return
+
+    def Execute(self):
+        for self.eTime, self.eClass in self.container:
+            if (float(self.eTime) <= float(time.time())):
+                self.eClass.Event()
+                del self.container[self.container.index([self.eTime, self.eClass])]
+
+    def run(self):
+        while self.check:
+            #print self.container
+            self.Execute()
+            time.sleep(0.5)
+        return
+
+    def stop(self):
+        self.check = False
+        return True
+
+#################################################
+####    FIFO-Buffer for incomming commands   ####
+#################################################
 class Fifo:
     def __init__(self):
         self.first_a= deque()
@@ -48,6 +81,9 @@ class Fifo:
             return True
         return False
 
+#################################################
+####             ControlProcessor            ####
+#################################################
 class CP(object):
     _instance = None
     _lock = threading.Lock()
@@ -68,10 +104,8 @@ class CP(object):
         # 3 = Name
         self.installed_mods = []
 
-        #TimedEvent
-        # 0 = Timer
-        # 1 = Module.Master().Event()
-        self.installed_mods_timed_event = [] 
+        #EventSystem
+        self.m_Events = Events()
 
         self.Drone_Name = ""
 
@@ -89,6 +123,7 @@ class CP(object):
         self.m_Sock.debug = False
         self.m_Sock_out = self.m_Sock.DroneUpdater(self)
         self.m_Sock_out.start()
+        self.m_Events.start()
 
         #UserMods
         self.m_args = FILEIO.FileIO().ReadLine(self.configfile)
@@ -138,6 +173,8 @@ class CP(object):
 
     ## Threads and Mods stop here
     def StopMods(self):
+        #StopEvents
+        self.m_Events.stop()
         #UserMods
         for item in self.installed_mods:
             if item[1].stop() == True:
@@ -151,22 +188,9 @@ class CP(object):
     #################################################
     ####                EVENTS                   ####
     #################################################
-    def InsertEvent(self,time,handler):
-        self.installed_mods_timed_event.append([time, handler])
-        sorted(self.installed_mods_timed_event, key=lambda timer: timer[0])
+    def InsertEvent(self,eTime,handler):
+        self.m_Events.Insert(eTime, handler)
         return
-
-    def CheckEvent(self):
-        try:
-            if self.installed_mods_timed_event:
-                for self.m_timer, self.item in self.installed_mods_timed_event:
-                    if (self.m_timer <= time.time()):
-                        del self.installed_mods_timed_event[self.installed_mods_timed_event.index([self.m_timer, self.item])]
-                        self.item.Event()
-                        return
-                    return
-        except IndexError:
-            pass
 
     #Alert CLI
     def ToConsole(self,args):
@@ -192,8 +216,6 @@ class CP(object):
         #    self.sLog.outCritical("Couldn't get the lock. Maybe next time")
 
     def refresh(self):
-        self.CheckEvent()
-
         while (self.buffer.hascontent() == True):
             args, handler = self.buffer.pop()
 
@@ -255,8 +277,6 @@ class CP(object):
         if (args.split(" ")[1] == "1"):
             for self.out in self.installed_mods:
                  handler.writeline(self.out[3])
-            for self.out in self.installed_mods_timed_event:
-                handler.writeline(str(self.out[0]) + " " + str(self.out[1]))
 
         #Stop module X
         if (args.split(" ")[1] == "2"):

@@ -31,13 +31,25 @@ class FileChecker:
 
         self.errorlog   = logfile
         self.errreg     = []
+        self.ignex      = []
         return
     
     def insertFilter(self, regex, count, position, duration):
         self.errreg.append([regex, position, count, duration])
         return
     
+    def insertIgnorex(self, ignore):
+        self.ignex.append(ignore)
+        return
+
     def checkip(self, ip, count, duration):
+        if (int(count) == 0):
+            if (int(duration) == 0):
+                Master.CP.command("300 1 " + ip + " 0 0 0", "NULL")
+            else:
+                Master.CP.command("300 1 " + ip + " 0 " + str(int((time.time() + int(duration)))) + " 0", "NULL")
+            return
+
         for self.ip, self.count in self.marked_ip:
             if (self.ip == ip):
                 if (int(count) > int(self.count)):
@@ -66,11 +78,13 @@ class FileChecker:
         self.fobj.seek(self.seek)
         for self.line in self.fobj: 
             self.line = self.line.strip()
-            
-            for self.regex, self.position, self.count, self.duration in self.errreg:
-                if self.regex in self.line:
-                    self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
-                    self.checkip(self.fip, self.count, self.duration)
+
+            for self.ignorex in self.ignex:
+                if not self.ignorex in self.line:
+                    for self.regex, self.position, self.count, self.duration in self.errreg:
+                        if self.regex in self.line:
+                            self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
+                            self.checkip(self.fip, self.count, self.duration)
                 
         self.seek = self.fobj.tell()
         self.fobj.close()
@@ -113,7 +127,8 @@ class Master(threading.Thread):
                     self.count = self.line.strip().replace(" ", "").split('=')[1]
                 if (self.line.strip().find("Regex =") != -1):
                     self.AppendRule(self.fname, self.line.strip().split('"')[1], self.count, self.IPPosition, self.btime)
-        
+                if (self.line.strip().find("Ignorex =") != -1):
+                    self.AppendIgnRule(self.fname, self.line.strip().split('"')[1])
         self.fobject.close()
         return
     
@@ -130,6 +145,12 @@ class Master(threading.Thread):
         for self.Name, self.Class in self.Filter:
             if (self.Name == name):
                 self.Class.insertFilter(regex, count, position, duration)
+        return
+
+    def AppendIgnRule(self, name, ignorex):
+        for self.Name, self.Class in self.Filter:
+            if (self.Name == name):
+                self.Class.insertIgnorex(ignorex)
         return
 
     def command(self,args,handler):

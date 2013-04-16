@@ -32,7 +32,7 @@ class Master:
 
     def Event(self):
         self.refreshList()
-        self.CP.InsertEvent((86700 + time.time()), self) 
+        self.CP.InsertEvent((86700 + time.time()), self)
         return
 
     def refreshList(self):
