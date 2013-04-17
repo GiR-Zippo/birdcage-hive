@@ -35,11 +35,11 @@ class FileChecker:
         return
     
     def insertFilter(self, regex, count, position, duration):
-        self.errreg.append([regex, position, count, duration])
+        self.errreg.append([regex.upper(), position, count, duration])
         return
     
     def insertIgnorex(self, ignore):
-        self.ignex.append(ignore)
+        self.ignex.append(ignore.upper())
         return
 
     def checkip(self, ip, count, duration):
@@ -77,14 +77,16 @@ class FileChecker:
         self.fobj = open(self.errorlog, "r")
         self.fobj.seek(self.seek)
         for self.line in self.fobj: 
-            self.line = self.line.strip()
+            self.line = self.line.strip().upper()
 
             for self.ignorex in self.ignex:
-                if not self.ignorex in self.line:
-                    for self.regex, self.position, self.count, self.duration in self.errreg:
-                        if self.regex in self.line:
-                            self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
-                            self.checkip(self.fip, self.count, self.duration)
+                if self.ignorex in self.line:
+                    break
+            else:
+                for self.regex, self.position, self.count, self.duration in self.errreg:
+                    if self.regex in self.line:
+                        self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
+                        self.checkip(self.fip, self.count, self.duration)
                 
         self.seek = self.fobj.tell()
         self.fobj.close()

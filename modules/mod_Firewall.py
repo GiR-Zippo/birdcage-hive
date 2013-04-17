@@ -166,6 +166,25 @@ class Firewall:
             self.CP.sLog.outCritical("Couldn't get the lock. Firewall::Update")
         return
 
+    def ShowStatistics(self, handler):
+        if (handler.ID == "SCK"):
+            return
+
+        handler.writeline ("Firewall statistic")
+        self.loc = 0
+        self.glob = 0
+        self.all = 0
+        for self.ip, self.connections, self.removetime, self.local in self.blacklist:
+            self.all = +1
+            if self.local == 0:
+                self.glob = +1
+            else:
+                self.loc = +1
+
+        handler.writeline ("Blacklist: All %u - Local %u - Global %u" % (self.all, self.loc, self.glob))
+        return
+
+
 ## define Checking-Thread
 class Master(threading.Thread):
     check = True;
@@ -299,7 +318,12 @@ class Master(threading.Thread):
                     self.CP.ToSocket("300 11 " + omv[2])
                     self.firewall.WhiteListRemove(omv[2])
                 if omv[1] == "13":
-                    self.firewall.ShowWhitelist(handler);
+                    self.firewall.ShowWhitelist(handler)
+
+                #Statistics
+                if omv[1] == "20":
+                    self.firewall.ShowStatistics(handler)
+
         return
     def stop(self):
         self.firewall.BlackListRemoveAll()
@@ -320,6 +344,8 @@ class CLI_Dict:
             if (args.split(" ")[0] == "version"):
                 print (m_version)
                 return
+            if (args.split(" ")[0] == "status"):
+                return "300 20"
             if (args.split(" ")[0] == "blacklist"):
                 if (self.maxlen >= 1):
                     #Insert local (ip,connection)
@@ -383,3 +409,5 @@ class CLI_Dict:
 # 300 11 (IP, 0|1)              = whitelist remove
 # 300 12 (IP, 0|1)              = whitelist gremove
 # 300 13                        = whitelist show
+
+# 300 20                        = Statistics
