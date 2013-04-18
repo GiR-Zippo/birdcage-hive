@@ -67,7 +67,7 @@ class Firewall:
 
         self.blacklist.append([ip, connections, removetime, local])
         self.ipt_b(ip)
-        self.CP.ToLog("IP: " + str(ip) + " banned.")
+        self.CP.ToLog("Debug", "IP: " + str(ip) + " banned.")
         #Send if ins't local
         if (local == 0):
             self.CP.ToSocket("300 1 " + str(ip) + " " + str(connections) + " " + removetime + " " + str(local))
@@ -79,7 +79,7 @@ class Firewall:
             if (item[0] == ip):
                 self.blacklist.remove(item)
                 self.ipt_ub(ip)
-                self.CP.ToLog("IP: " + str(ip) + " unbanned.")
+                self.CP.ToLog("Debug", "IP: " + str(ip) + " unbanned.")
         return
 
     def BlackListRemoveAll(self):
@@ -163,7 +163,7 @@ class Firewall:
                     self.BlackListRemove(self.ip)
             LOCK.release()
         else:
-            self.CP.sLog.outCritical("Couldn't get the lock. Firewall::Update")
+            self.CP.ToLog("Critical", "Couldn't get the lock. Firewall::Update")
         return
 
     def ShowStatistics(self, handler):

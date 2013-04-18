@@ -25,7 +25,7 @@ class sLog: #(object):
 
     def __init__(self):
         self.console_critical = False
-        self.console_info = False
+        self.console_debug = False
         return
 
     def config(self, args, CP):
@@ -44,21 +44,28 @@ class sLog: #(object):
                 if item.strip() == "LOG-Critical":
                     if self.out[i].strip() == "1":
                         self.console_critical = True
-                if item.strip() == "LOG-Info":
+                if item.strip() == "LOG-Debug":
                     if self.out[i].strip() == "1":
-                        self.console_info = True
+                        self.console_debug = True
+
+    def outString(self, args, toFile = True):
+            self.WriteLine(" [INFO] ", args)
+            print args
+            return
 
     def outCritical(self, args, toFile = True):
         if (toFile == True):
             self.WriteLine(" [CRITICAL] ", args)
         if self.console_critical == True:
             print args
+        return
 
-    def outString(self, args, toFile = True):
+    def outDebug(self, args, toFile = True):
         if (toFile == True):
-            self.WriteLine(" [INFO] ", args)
-        if self.console_info == True:
+            self.WriteLine(" [DEBUG] ", args)
+        if self.console_debug == True:
             print args
+        return
 
     def WriteLine(self,ct, args):
         self.file = open("Hive.log", 'a')

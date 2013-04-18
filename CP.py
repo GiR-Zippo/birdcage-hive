@@ -203,8 +203,14 @@ class CP(object):
     def ToDrone(self, name, args):
         self.m_Sock_out.writeTo(name, args)
 
-    def ToLog(self, args):
-        self.sLog.outString(args)
+    def ToLog(self, Logfilter, args):
+        if (Logfilter=="Info"):
+            self.sLog.outString(args)
+        if (Logfilter=="Debug"):
+            self.sLog.outDebug(args)
+        if (Logfilter=="Critical"):
+            self.sLog.outCritical(args)
+        return
 
     #Put incomming cmds on buffer
     def command(self, args,handler):

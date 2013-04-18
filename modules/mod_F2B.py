@@ -85,6 +85,8 @@ class FileChecker:
             else:
                 for self.regex, self.position, self.count, self.duration in self.errreg:
                     if self.regex in self.line:
+                        if (Master.LogDebug):
+                            self.CP.ToLog("Info", self.line)
                         self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
                         self.checkip(self.fip, self.count, self.duration)
                 
@@ -95,6 +97,8 @@ class FileChecker:
 class Master(threading.Thread):
     check = True;
     CP #Pointer for the CP
+    LogDebug = False
+
     def __init__(self,CP):
         ## Set the CP
         self.CP = CP       
@@ -117,6 +121,9 @@ class Master(threading.Thread):
             if (self.line.strip()):
                 if (self.line.strip()[0] == "#"):
                     continue
+                if (self.line.strip().find("LogDebug =") != -1):
+                    if (int(self.line.strip().replace(" ", "").split('=')[1]) == 1):
+                        Master.LogDebug = True
                 if (self.line.strip().find("FilterName =") != -1):
                     self.fname = self.line.strip().split('"')[1]
                 if (self.line.strip().find("File =") != -1):
