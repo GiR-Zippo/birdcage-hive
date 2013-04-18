@@ -165,7 +165,7 @@ class CP(object):
 
     #Here we define our Startup-Setup
     def StartUP(self):
-        self.m_Sock_out.writeline("001 10 " + self.Drone_Name)
+        self.m_Sock_out.writeline("002 2 " + self.Drone_Name)
         self.m_Sock_out.writeline("INIT")
 
         for item in self.installed_mods:
@@ -236,7 +236,7 @@ class CP(object):
 
                 #If we get a init from network
             if args == "INIT":
-                self.ToSocket("001 10 " + self.Drone_Name) #Send our Name
+                self.ToSocket("002 2 " + self.Drone_Name) #Send our Name
                 for item in self.installed_mods:
                     item[1].initfromdrone(args, handler)
 
@@ -323,7 +323,7 @@ class CP(object):
 
         #List all Authed and Connected Drones
         if (args.split(" ")[1]=="7"):
-            for self.out in self.m_Sock.DroneUpdater.KnownDrones_Name:
+            for self.out in self.m_Sock.DroneUpdater.KnownDronesName:
                 handler.writeline(self.out)
 
         #SendFile to Drone

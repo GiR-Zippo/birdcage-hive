@@ -26,6 +26,8 @@ class sLog: #(object):
     def __init__(self):
         self.console_critical = False
         self.console_debug = False
+        self.utime = str(time.strftime("%Y-%m-%d %H:%M"))
+        self.logfolder = "./"
         return
 
     def config(self, args, CP):
@@ -47,6 +49,8 @@ class sLog: #(object):
                 if item.strip() == "LOG-Debug":
                     if self.out[i].strip() == "1":
                         self.console_debug = True
+                if item.strip() == "LogDir":
+                    self.logfolder = self.out[i].strip().replace('"', "")
 
     def outString(self, args, toFile = True):
             self.WriteLine(" [INFO] ", args)
@@ -68,6 +72,6 @@ class sLog: #(object):
         return
 
     def WriteLine(self,ct, args):
-        self.file = open("Hive.log", 'a')
+        self.file = open(self.logfolder + self.utime + "-Hive.log", 'a')
         self.file.write(str(time.strftime("%Y-%m-%d %H:%M"))+ ct + args + "\n")
         self.file.close()

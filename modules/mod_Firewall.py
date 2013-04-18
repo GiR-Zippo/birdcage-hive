@@ -175,13 +175,13 @@ class Firewall:
         self.glob = 0
         self.all = 0
         for self.ip, self.connections, self.removetime, self.local in self.blacklist:
-            self.all = +1
+            self.all = self.all+1
             if self.local == 0:
-                self.glob = +1
+                self.glob = self.glob+1
             else:
-                self.loc = +1
+                self.loc = self.loc+1
 
-        handler.writeline ("Blacklist: All %u - Local %u - Global %u" % (self.all, self.loc, self.glob))
+        handler.writeline ("Blacklist: All %s - Local %s - Global %s" % (self.all, self.loc, self.glob))
         return
 
 

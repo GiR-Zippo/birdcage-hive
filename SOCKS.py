@@ -88,15 +88,22 @@ class ZipInputStream:
 
 
 class Drone:
-    def __init__(self,IP,CP):
+    def __init__(self,Name, IP,CP,IA,OA):
         self.cp = CP;
         self.ip = IP;
         self.ID = "SCK";
-        self.Name = "";
+        self.Name = Name
         self.in_IP = deque();
         self.in_Data = deque();
         self.incomming_ip = "";
         self.out_Data = deque();
+        self.EnInAdress = []
+        if not (IA == "0"):
+            self.EnInAdress = IA.split(",")
+        self.EnOutAdress = []
+        if not (OA == "0"):
+            self.EnOutAdress = OA.split(",")
+        self.online = False
         return
 
     def Buffer_In(self,ip,data):
@@ -135,11 +142,19 @@ class Drone:
         self.data = self.output[1];
 
         self.inc = ZipInputStream(StringIO.StringIO(self.data)).read();
+
+        #Check if this drone has restrictions
+        if (self.EnInAdress):
+            if not (self.inc.split(" ")[0].strip() in self.EnInAdress):
+               return
+
         #Check for DroneName
-        if (self.inc.split(" ")[0] ==  "001"):
-            if (self.inc.split(" ")[1] ==  "10"):
-                self.Name = self.inc.split(" ")[2];
-                DroneUpdater.KnownDrones_Name[DroneUpdater.KnownDrones.index(self.ip)] = self.Name #Temporary
+        if (self.inc.split(" ")[0] ==  "002"):
+            if (self.inc.split(" ")[1] ==  "2"):
+                self.Name = self.inc.split(" ")[2]
+                if (DroneUpdater.KnownDronesName[DroneUpdater.KnownDronesIP.index(self.ip)] == self.Name.strip()):
+                    #print "Drone %s online." % self.Name
+                    self.online = True
                 return;
 
         self.cp.command(self.inc,self);
@@ -158,35 +173,49 @@ class Drone:
         self.sock.close()
 
     def writeline(self,args):
-       self.Buffer_Out(args)
+        if (self.EnOutAdress):
+            if not (args.split(" ")[0].strip() ==  "INIT"):
+                self.found = False
+                for self.item in self.EnOutAdress:
+                    if (args.split(" ")[0] ==  self.item):
+                        self.found = True
+                        break
+                if (self.found == False):
+                    return
+        self.Buffer_Out(args)
 
 #Updater der Sessions, bis ich ne Alternative hab
 class DroneUpdater(threading.Thread):
-    KnownDrones = [];      #DroneIP for ID
-    KnownDrones_Name = []; #DroneName
-    KnownDrones_Acc = [];  #Accesssor
-    Runnable = True;
+    KnownDronesIP = []
+    KnownDronesName = []
+    KnownDronesAccessor = []
+    Runnable = True
     CP = None
     def __init__(self, CP):
-        threading.Thread.__init__(self);
+        threading.Thread.__init__(self)
         DroneUpdater.CP = CP
+
+    def insertNewDrone(self, ip, name, accessor):
+        DroneUpdater.KnownDronesIP.append(ip.strip())
+        DroneUpdater.KnownDronesName.append(name.strip())
+        DroneUpdater.KnownDronesAccessor.append(accessor)
 
     def run(self):
         while (DroneUpdater.Runnable == True):
             time.sleep(0.01) #Take a nap :)
-            for self.item in DroneUpdater.KnownDrones_Acc:
-                self.item.Update();
+            for self.accessor in DroneUpdater.KnownDronesAccessor:
+                self.accessor.Update();
 
     def stop(self):
         DroneUpdater.Runnable = False;
 
     def writeTo(self,Name, args):
-        self.drone = DroneUpdater.KnownDrones_Acc[DroneUpdater.KnownDrones_Name.index(Name)]
-        self.drone.writeline(args)
+        self.index = DroneUpdater.KnownDronesName.index(name.strip())
+        DroneUpdater.KnownDronesAccessor[index].writeline(args)
 
     def writeline(self,args):
-        for self.item in DroneUpdater.KnownDrones_Acc:
-            self.item.writeline(args)
+        for self.accessor in DroneUpdater.KnownDronesAccessor:
+            self.accessor.writeline(args)
 
 #Helper
 class UDP_Listener(SocketServer.BaseRequestHandler):
@@ -195,14 +224,16 @@ class UDP_Listener(SocketServer.BaseRequestHandler):
         #socket = self.request[1]
 
         try:
-            self.index = DroneUpdater.KnownDrones.index(self.client_address[0])
+            self.index = DroneUpdater.KnownDronesIP.index(self.client_address[0])
             if (self.index > -1):
-                DroneUpdater.KnownDrones_Acc[self.index].recv_Data(self.client_address[0],data)
+                DroneUpdater.KnownDronesAccessor[self.index].recv_Data(self.client_address[0],data)
         except (ValueError):
             pass
 
 #Our Listener
 class Listener(threading.Thread):
+    DroneUpdater = None
+
     def __init__(self):
         threading.Thread.__init__(self)
 
@@ -216,17 +247,31 @@ class Listener(threading.Thread):
         self.server.shutdown()
 
     def config(self, args, cp):
+        Listener.CP = cp
+        Listener.DroneUpdater = DroneUpdater(cp)
+        self.cip = ""
+        self.cdrone = ""
+        self.cinadress = ""
+        self.coutadress = ""
+
         self.temp = args.split("\n")
-        for str in self.temp:
-            Listener.CP = cp
-            out = str.split("=")
-            i=0
-            for item in out:
-                i=i+1
-                if item.strip() == "drones":
-                    t_ip = out[i].split(",")
-                    for item in t_ip:
-                        print "adding Drone IP: " + item.strip()
-                        DroneUpdater.KnownDrones.append(item.strip())
-                        DroneUpdater.KnownDrones_Name.append(" ")
-                        DroneUpdater.KnownDrones_Acc.append(Drone(item.strip(), cp))
+        for self.item in self.temp:
+            if not (self.item):
+                continue
+            if (self.item[0] == "#"):
+                continue
+            if ("Drone-Name" in self.item):
+                self.cdrone = self.item.split("=")[1].strip()
+            if ("Drone-IP" in self.item):
+                self.cip = self.item.split("=")[1].strip()
+            if ("Drone-Enable-InAdress" in self.item):
+                self.cinadress = self.item.split("=")[1].strip()
+            if ("Drone-Enable-OutAdress" in self.item):
+                self.coutadress = self.item.split("=")[1].strip()
+            if ("Drone-Insert" in self.item):
+                print "Adding Drone: " + self.cdrone
+                Listener.DroneUpdater.insertNewDrone(self.cip, self.cdrone, (Drone(self.cdrone, self.cip, cp, self.cinadress, self.coutadress)))
+                self.cip = ""
+                self.cdrone = ""
+                self.cinadress = ""
+                self.coutadress = ""

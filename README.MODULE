@@ -117,5 +117,12 @@ Addy: 001
 #########           Addressübersicht II            ###########
 ##############################################################
 001       = Internal
+200       = Memory
 300 - 349 = Networking
+* 300     = Firewall
+**  301   = Spamhaus
+**  302   = DShield
+310 - 32x = BanFilter
+**  310   = MySQL
+**  311   = TS3
 900 - 9xx = Reserved
