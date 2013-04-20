@@ -109,7 +109,7 @@ class Master(threading.Thread):
         return
 
     def config(self, args, CP):
-        Master.CP = CP;
+        Master.CP = CP
 
         self.fname = ""
         self.btime = 0
