@@ -1,0 +1,5 @@
+Einfacher Spamhausreader für ihre Blacklist.
+Die IPs werden dann an die Firewall übergeben.
+
+Abhängigkeiten:
+- mod_Firewall

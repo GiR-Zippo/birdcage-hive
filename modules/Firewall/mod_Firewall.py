@@ -192,7 +192,7 @@ class Master(threading.Thread):
     interval = 1;
     CP #Pointer for the CP
 
-    def __init__(self,CP): 
+    def __init__(self,CP):
         ## Set the CP
         self.CP = CP
         self.initialized = False

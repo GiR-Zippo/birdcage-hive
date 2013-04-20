@@ -1,0 +1,31 @@
+#################################################
+#        Pop3-Imap-FilterExpressions            #
+#################################################
+
+Regex = "pop3-login: Aborted login (auth failed"
+Regex = "pop3-login: Disconnected (auth failed"
+Regex = "imap-login: Disconnected (auth failed"
+
+
+#################################################
+#        HomePage-FilterExpressions             #
+#################################################
+
+Regex = ") Havij"       http://www.itsecteam.com/products/havij-v116-advanced-sql-injection/
+Regex = "Doc-Scan)"     http://www.mavitunasecurity.com/
+Regex = "netsparker"    http://www.mavitunasecurity.com/
+Regex = "/etc/passwd/"  Stupid, but found :)
+
+Sample SQL-injection-things
+Regex = "+or+"
+Regex = "+and+"
+Regex = "+union+all+"
+
+#################################################
+#       HomePage-IgnoreFilterExpressions        #
+#################################################
+
+Ignorex = "File does not exist: /INSERT/YOUR/PATH/HERE/apple-touch-icon-precomposed.png" Ignore Missing Apple-Icon
+Ignorex = "File does not exist: /INSERT/YOUR/PATH/HERE/apple-touch-icon.png"             Ignore Missing Apple-Icon
+Ignorex = "File does not exist: /INSERT/YOUR/PATH/HERE/woltlab/cache/"                   Ignore Missing Cache from WoltlabCache
+

@@ -1,0 +1,5 @@
+Einfacher Reader für die Dshield Blacklisten.
+Die IPs werden dann an die Firewall übergeben.
+
+Abhängigkeiten:
+- mod_Firewall

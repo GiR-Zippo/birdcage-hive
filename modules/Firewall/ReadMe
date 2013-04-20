@@ -1,0 +1,10 @@
+Die Firewall.
+Ein Sammelsurium von IPTable-Regeln und anderen lustigen Zeugs.
+
+Die Installation läuft wie gehabt ab, Modul in die TopDir werfen,
+Config bearbeiten und ins Config-Verzeichnis des Hives packen.
+Hive starten, fertig.
+
+Abhängigkeiten:
+-
+Adressbereich: 300

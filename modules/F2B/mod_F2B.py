@@ -33,11 +33,11 @@ class FileChecker:
         self.errreg     = []
         self.ignex      = []
         return
-    
+
     def insertFilter(self, regex, count, position, duration):
         self.errreg.append([regex.upper(), position, count, duration])
         return
-    
+
     def insertIgnorex(self, ignore):
         self.ignex.append(ignore.upper())
         return
@@ -66,7 +66,7 @@ class FileChecker:
 
         self.marked_ip.append([ip, 1])
         return
-    
+
     def refresh(self):
         #Dateigroesse ermitteln und ggf. den Seek resetten
         file_size = os.path.getsize(self.errorlog)
@@ -76,7 +76,7 @@ class FileChecker:
 
         self.fobj = open(self.errorlog, "r")
         self.fobj.seek(self.seek)
-        for self.line in self.fobj: 
+        for self.line in self.fobj:
             self.line = self.line.strip().upper()
 
             for self.ignorex in self.ignex:
@@ -89,7 +89,7 @@ class FileChecker:
                             self.CP.ToLog("Info", self.line)
                         self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
                         self.checkip(self.fip, self.count, self.duration)
-                
+
         self.seek = self.fobj.tell()
         self.fobj.close()
         return
@@ -101,7 +101,7 @@ class Master(threading.Thread):
 
     def __init__(self,CP):
         ## Set the CP
-        self.CP = CP       
+        self.CP = CP
         self.Filter = []
         threading.Thread.__init__(self)
 
@@ -115,7 +115,7 @@ class Master(threading.Thread):
         self.btime = 0
         self.count = 0
         self.IPPosition = 0
-        
+
         self.fobject = open("./configs/mod_F2B.conf", "r")
         for self.line in self.fobject:
             if (self.line.strip()):
@@ -140,7 +140,7 @@ class Master(threading.Thread):
                     self.AppendIgnRule(self.fname, self.line.strip().split('"')[1])
         self.fobject.close()
         return
-    
+
     def SetFilter(self, name, file):
         for self.Name, self.Class in self.Filter:
             if (self.Name == name):

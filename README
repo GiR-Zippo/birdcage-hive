@@ -5,4 +5,3 @@ It contains only a basic I/O, internal fifo-buffer for disptaching between the m
 If this program should do anything, you have to program some modules :)
 
 The final complexity from this program depends on your modules and interaction between them and other "drones".
-
