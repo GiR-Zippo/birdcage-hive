@@ -274,6 +274,9 @@ class CP(object):
                 return self.out
         return None
 
+    def GetDroneName(self):
+        return self.Drone_Name
+
     ##############################################
     # Addressline 001 fuer den internen Gebrauch #
     ##############################################

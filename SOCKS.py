@@ -27,6 +27,8 @@ import socket
 import zlib
 import string, StringIO,time
 from collections import deque
+from Crypto.Cipher import ARC4
+from Crypto.Hash import SHA256
 
 OutPort = 5022 #Change Socket to 5022
 InPort  = 5022
@@ -86,7 +88,6 @@ class ZipInputStream:
         self.offset = self.offset + len(data)
         return data
 
-
 class Drone:
     def __init__(self,Name, IP,CP,IA,OA):
         self.cp = CP;
@@ -104,6 +105,9 @@ class Drone:
         if not (OA == "0"):
             self.EnOutAdress = OA.split(",")
         self.online = False
+        self.h = SHA256.new()
+        self.h.update(b'%s' % self.Name)
+        self.digest = self.h.hexdigest()
         return
 
     def Buffer_In(self,ip,data):
@@ -139,14 +143,17 @@ class Drone:
             return;
 
         #self.incomming_ip = self.output[0];
-        self.data = self.output[1];
-
+        self.data = self.output[1]
+        self.cryp = ARC4.new(self.digest)
+        self.data = self.cryp.decrypt(self.data)
         self.inc = ZipInputStream(StringIO.StringIO(self.data)).read();
 
         #Check if this drone has restrictions
         if (self.EnInAdress):
-            if not (self.inc.split(" ")[0].strip() in self.EnInAdress):
-               return
+            if not (self.inc.split(" ")[0].strip() == "INIT"):
+                self.adchk = self.inc.split(" ")[0].strip() + " " + self.inc.split(" ")[1].strip()
+                if not (self.adchk in self.EnInAdress):
+                    return
 
         #Check for DroneName
         if (self.inc.split(" ")[0] ==  "002"):
@@ -167,7 +174,10 @@ class Drone:
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
-            self.sock.sendto(zlib.compress(self.output) , (self.ip, OutPort))
+            self.cryp = ARC4.new(Listener.Digest)
+            self.data = zlib.compress(self.output)
+            self.data = self.cryp.encrypt(self.data)
+            self.sock.sendto(self.data , (self.ip, OutPort))
         except socket.error:
             pass
         self.sock.close()
@@ -175,12 +185,8 @@ class Drone:
     def writeline(self,args):
         if (self.EnOutAdress):
             if not (args.split(" ")[0].strip() ==  "INIT"):
-                self.found = False
-                for self.item in self.EnOutAdress:
-                    if (args.split(" ")[0] ==  self.item):
-                        self.found = True
-                        break
-                if (self.found == False):
+                self.adchk = args.split(" ")[0].strip() + " " + args.split(" ")[1].strip()
+                if not (self.adchk in self.EnOutAdress):
                     return
         self.Buffer_Out(args)
 
@@ -233,10 +239,9 @@ class UDP_Listener(SocketServer.BaseRequestHandler):
 #Our Listener
 class Listener(threading.Thread):
     DroneUpdater = None
-
+    Digest = None
     def __init__(self):
         threading.Thread.__init__(self)
-
         HOST, PORT = "0.0.0.0", InPort
         self.server = SocketServer.UDPServer((HOST, PORT), UDP_Listener)
 
@@ -247,6 +252,10 @@ class Listener(threading.Thread):
         self.server.shutdown()
 
     def config(self, args, cp):
+        self.h = SHA256.new()
+        self.h.update(b'%s' % cp.GetDroneName())
+        Listener.Digest = self.h.hexdigest()
+
         Listener.CP = cp
         Listener.DroneUpdater = DroneUpdater(cp)
         self.cip = ""
