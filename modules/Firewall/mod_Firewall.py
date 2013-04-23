@@ -23,7 +23,7 @@ from collections import deque
 
 # BaseAddress
 address = "300"
-m_version ="0.2"
+m_version ="0.3"
 LOCK = threading.Lock()
 
 #The FIFO-Buffer for incomming commands
@@ -49,6 +49,7 @@ class Fifo:
 
 class Firewall:
     def __init__(self, CP):
+        self.blackrange = [] #Name, range
         self.whitelist = []
         self.blacklist = []
         self.CP = CP
@@ -126,6 +127,59 @@ class Firewall:
                     handler.writeline ("" + str(item[0]) + " Global "+ str(item[1]))
                 else:
                     handler.writeline ("" + str(item[0]) + " Local "+ str(item[1]))
+        return
+
+    def InsertBlackRange(self, name, range, local):
+        self.bname = name.upper()
+        for self.name, self.range, self.loc in self.blackrange:
+            if (self.name == name):
+                return
+            if (self.range == range):
+                return
+
+        self.blackrange.append([name.upper(), range, local])
+        self.CP.ToLog("Debug", "RANGE: " + str(range) + " blocked.")
+        self.ipt_rb(range)
+        if (local == 0):
+            self.CP.ToSocket("300 30 0 %s %s" % (name.upper(), range))
+        return
+
+    def RemoveBlackRange(self, name, local):
+        self.sname = name.upper()
+        for self.name, self.range, self.loc in self.blackrange:
+            if (self.name == self.sname):
+                self.blackrange.remove([self.name, self.range, self.loc])
+                self.CP.ToLog("Debug", "RANGE: " + str(range) + " unblocked.")
+                self.ipt_rub(self.range)
+                if (local == 0):
+                    self.CP.ToSocket("300 31 0 " + self.sname)
+                return
+        return
+
+    def ShowBlackRange(self,handler):
+        for self.name, self.range, self.loc in self.blackrange:
+            if (handler.ID == "SCK"):
+                if (self.loc == 0):
+                    handler.writeline ("300 30 0 %s %s" %(self.name, self.range))
+            else:
+                if (self.loc == 0):
+                    handler.writeline ("%s %s Global" % (self.name, self.range))
+                else:
+                    handler.writeline ("%s %s Local" % (self.name, self.range))
+        return
+
+    def ipt_rb(self,range):
+        os.system ("/sbin/iptables -I INPUT -p tcp -m iprange --src-range " + str(range) + " -j REJECT --reject-with tcp-reset")
+        os.system ("/sbin/iptables -I INPUT -m iprange --src-range " + str(range) + " -j REJECT")
+        os.system ("/sbin/iptables -I FORWARD -m iprange --src-range " + str(range) + " -j REJECT")
+        os.system ("/sbin/iptables -I OUTPUT -m iprange --src-range " + str(range) + " -j DROP")
+        return
+
+    def ipt_rub(self,range):
+        os.system ("/sbin/iptables -D INPUT -p tcp -m iprange --src-range " + str(range) + " -j REJECT --reject-with tcp-reset")
+        os.system ("/sbin/iptables -D INPUT -m iprange --src-range " + str(range) + " -j REJECT")
+        os.system ("/sbin/iptables -D FORWARD -m iprange --src-range " + str(range) + " -j REJECT")
+        os.system ("/sbin/iptables -D OUTPUT -m iprange --src-range " + str(range) + " -j DROP")
         return
 
     def ipt_ub(self,ip):
@@ -206,8 +260,9 @@ class Master(threading.Thread):
         self.firewall = Firewall(self.CP)
 
     def initfromdrone(self, args, handler):
-        self.firewall.ShowWhitelist(handler);
-        self.firewall.ShowBlacklist(handler);
+        self.firewall.ShowWhitelist(handler)
+        self.firewall.ShowBlacklist(handler)
+        self.firewall.ShowBlackRange(handler)
         return
 
     def run(self):
@@ -324,9 +379,18 @@ class Master(threading.Thread):
                 if omv[1] == "20":
                     self.firewall.ShowStatistics(handler)
 
+                #Range
+                if omv[1] == "30":
+                    self.firewall.InsertBlackRange(omv[3], omv[4], int(omv[2]))
+                if omv[1] == "31":
+                    self.firewall.RemoveBlackRange(omv[3], int(omv[2]))
+                if omv[1] == "32":
+                    self.firewall.ShowBlackRange(handler)
+
         return
     def stop(self):
         self.firewall.BlackListRemoveAll()
+        os.system ('/sbin/iptables --flush')
         Master.check = False
         return True
 
@@ -373,7 +437,6 @@ class CLI_Dict:
 
             if (args.split(" ")[0] == "whitelist"):
                 if (self.maxlen >= 1):
-
                     if (args.split(" ")[1] == "insert"):
                         return "300 10 " + args.split(" ")[2].strip() + " 1";
                     if (args.split(" ")[1] == "ginsert"):
@@ -385,8 +448,20 @@ class CLI_Dict:
                     #show the whitelist
                     if (args.split(" ")[1] == "show"):
                             return "300 13"
-
+            if (args.split(" ")[0].strip() == "rangeban"):
+                if (self.maxlen >= 1):
+                    if (args.split(" ")[1].strip() == "insert"):
+                        return "300 30 1 %s %s " %(args.split(" ")[2].strip(), args.split(" ")[3].strip())
+                    if (args.split(" ")[1].strip() == "ginsert"):
+                        return "300 30 0 %s %s " %(args.split(" ")[2].strip(), args.split(" ")[3].strip())
+                    if (args.split(" ")[1] == "remove"):
+                        return "300 31 1 " + (args.split(" ")[2].strip())
+                    if (args.split(" ")[1] == "gremove"):
+                        return "300 31 0 " + (args.split(" ")[2].strip())
+                    if (args.split(" ")[1] == "show"):
+                            return "300 32"
         except IndexError:
+            print args
             return
 
 #########################################
@@ -411,3 +486,7 @@ class CLI_Dict:
 # 300 13                        = whitelist show
 
 # 300 20                        = Statistics
+
+# 300 30                        = rangeban insert | ginsert (Name Range)
+# 300 31                        = rangeban remove | gremove (Name)
+# 300 32                        = rangeban show

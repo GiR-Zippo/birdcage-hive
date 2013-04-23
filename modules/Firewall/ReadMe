@@ -8,3 +8,25 @@ Hive starten, fertig.
 Abhängigkeiten:
 -
 Adressbereich: 300
+
+Commands:
+blacklist insert ip connections removetime  #lokal bannen
+blacklist ginsert ip connections removetime #global bannen
+blacklist show                              #bans anzeigen
+
+whitelist insert ip                         #lokal diese ip immer zulassen
+whitelist ginsert ip                        #global diese ip immer zulassen
+whitelist show                              #whitelist anzeigen
+
+rangeban insert Name IP-Range               #Eine IP-Range lokal bannen
+rangeban ginsert Name IP-Range              #Eine IP-Range global bannen
+rangeban show                               #alle rangebans anzeigen
+
+status                                      #gibt die Kurzfassung der Blacklist aus
+
+Legende:
+ip          = IP
+IP-Range    = Eine IP-Range z.B.: 192.168.0.0-192.168.255.255 (Schreibweise sollte so eingehalten werden)
+connections = 0 by default (ist für den internen gebrauch)
+removetime  = auslaufen des bans in sekunden
+Name        = Name der Regel
