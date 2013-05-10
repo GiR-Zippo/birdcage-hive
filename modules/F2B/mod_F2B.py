@@ -87,8 +87,11 @@ class FileChecker:
                     if self.regex in self.line:
                         if (Master.LogDebug):
                             self.CP.ToLog("Info", self.line)
-                        self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
-                        self.checkip(self.fip, self.count, self.duration)
+                        try:
+                            self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
+                            self.checkip(self.fip, self.count, self.duration)
+                        except IndexError:
+                            pass
 
         self.seek = self.fobj.tell()
         self.fobj.close()
