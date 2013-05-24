@@ -23,7 +23,6 @@ import CP
 import commands
 import os
 import sys
-import signal
 import threading
 import time
 
@@ -33,17 +32,10 @@ class Master(threading.Thread):
     interval = 1;
     CP #Pointer for the CP
 
-    def signal_handler(self, signal, frame):
-        self.writeline("");
-        self.writeline("terminating...")
-        self.CP.command("TP",self)
-        self.check = False
-        return
-        
     def __init__(self,CP):
         ## Set the CP
         self.CP = CP
-        signal.signal(signal.SIGINT, self.signal_handler)
+
         # Do initialization what you have to do
         threading.Thread.__init__(self)
         self.active_module = ""
