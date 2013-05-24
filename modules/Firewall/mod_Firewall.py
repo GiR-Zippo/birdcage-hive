@@ -168,6 +168,62 @@ class Firewall:
                     handler.writeline ("%s %s Local" % (self.name, self.range))
         return
 
+    def InsertBlackPort(self, port, type):
+        port = port.strip()
+        if (type == "TCP"):
+            self.ipt_bp(port, False)
+        else:
+            self.ipt_bp(port, True)
+
+        self.CP.ToLog("Debug", "PORT(s): " + str(port) + " " + str(type) + " blocked.")
+        return
+
+    def InsertWhitePort(self, port, type):
+        port = port.strip()
+        if (type == "TCP"):
+            self.ipt_wp(port, False)
+        else:
+            self.ipt_wp(port, True)
+
+        self.CP.ToLog("Debug", "PORT(s): " + str(port) + " " + str(type) + " accepted.")
+        return
+
+    def ipt_wp(self,port, udp):
+        if (udp == False):
+            self.dp = "tcp"
+            os.system ("/sbin/iptables -I INPUT -p " + self.dp + " --destination-port " + str(port) + " -j ACCEPT")
+        else:
+            self.dp = "udp"
+            os.system ("/sbin/iptables -I INPUT -p " + self.dp + " --destination-port " + str(port) + " -j ACCEPT")
+
+        os.system ("/sbin/iptables -I FORWARD -p " + self.dp + " --destination-port " + str(port) + " -j ACCEPT")
+        os.system ("/sbin/iptables -I OUTPUT -p " + self.dp + " --destination-port " + str(port) + " -j ACCEPT")
+        return
+
+    def ipt_bp(self,port, udp):
+        if (udp == False):
+            self.dp = "tcp"
+            os.system ("/sbin/iptables -I INPUT -p " + self.dp + " --destination-port " + str(port) + " -j REJECT --reject-with tcp-reset")
+        else:
+            self.dp = "udp"
+            os.system ("/sbin/iptables -I INPUT -p " + self.dp + " --destination-port " + str(port) + " -j REJECT")
+
+        os.system ("/sbin/iptables -I FORWARD -p " + self.dp + " --destination-port " + str(port) + " -j REJECT")
+        #os.system ("/sbin/iptables -I OUTPUT -p " + self.dp + " --destination-port " + str(port) + " -j DROP")
+        return
+
+    def ipt_upp(self,port, udp):
+        if (udp == False):
+            self.dp = "tcp"
+            os.system ("/sbin/iptables -D INPUT -p " + self.dp + " --destination-port " + str(port) + " -j REJECT --reject-with tcp-reset")
+        else:
+            self.dp = "udp"
+            os.system ("/sbin/iptables -D INPUT -p " + self.dp + " --destination-port " + str(port) + " -j REJECT")
+
+        os.system ("/sbin/iptables -D FORWARD -p " + self.dp + " --destination-port " + str(port) + " -j REJECT")
+        #os.system ("/sbin/iptables -D OUTPUT -p " + self.dp + " --destination-port " + str(port) + " -j DROP")
+        return
+
     def ipt_rb(self,range):
         os.system ("/sbin/iptables -I INPUT -p tcp -m iprange --src-range " + str(range) + " -j REJECT --reject-with tcp-reset")
         os.system ("/sbin/iptables -I INPUT -m iprange --src-range " + str(range) + " -j REJECT")
@@ -253,10 +309,10 @@ class Master(threading.Thread):
 
         ## Setup the Buffer
         self.buffer = Fifo()
+        os.system ("/sbin/iptables --flush")
 
         # Do initialization what you have to do
         threading.Thread.__init__(self)
-        os.system ("/sbin/iptables --flush")
         self.firewall = Firewall(self.CP)
 
     def initfromdrone(self, args, handler):
@@ -290,6 +346,7 @@ class Master(threading.Thread):
             i=0
             for item in self.out:
                 i=i+1
+                #Black/Whitelists
                 if item.strip() == "whitelist":
                     t_ip = self.out[i].split(",")
                     for item in t_ip:
@@ -300,6 +357,27 @@ class Master(threading.Thread):
                     for item in t_ip:
                         self.firewall.BlackListInsert(item.strip(), int(0), int(0), int(1))
 
+                if item.strip() == "whitelistportTCP":
+                    t_ip = self.out[i].split(",")
+                    for item in t_ip:
+                        self.firewall.InsertWhitePort(item, "TCP")
+
+                if item.strip() == "blacklistportTCP":
+                    t_ip = self.out[i].split(",")
+                    for item in t_ip:
+                        self.firewall.InsertBlackPort(item, "TCP")
+
+                if item.strip() == "whitelistportUDP":
+                    t_ip = self.out[i].split(",")
+                    for item in t_ip:
+                        self.firewall.InsertWhitePort(item, "UDP")
+
+                if item.strip() == "blacklistportUDP":
+                    t_ip = self.out[i].split(",")
+                    for item in t_ip:
+                        self.firewall.InsertBlackPort(item, "UDP")
+
+                #MISC-Configurations
                 if item.strip() == "tcp_syncookies":
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/tcp_syncookies")
                 if item.strip() == "ip_forward":
@@ -312,6 +390,7 @@ class Master(threading.Thread):
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses")
                 if item.strip() == "rp_filter":
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/conf/all/rp_filter")
+                    os.system ("for i in /proc/sys/net/ipv4/conf/*/rp_filter ; do \necho 1 > $i \ndone")
                 if item.strip() == "send_redirects":
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/conf/all/send_redirects")
                 if item.strip() == "accept_source_route":
@@ -320,12 +399,17 @@ class Master(threading.Thread):
                     os.system ("/sbin/iptables -A INPUT  -p icmp -m limit --limit " + self.out[i].strip() + "/second -j ACCEPT")
                     os.system ("/sbin/iptables -A INPUT  -p icmp -j DROP")
                 if item.strip() == "portscan-detection":
+                    if (self.out[i].strip() == "0"):
+                        continue
                     # These rules add scanners to the portscan list, and log the attempt.
-                    os.system ('/sbin/iptables -A INPUT   -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix "Portscan:"')
                     os.system ("/sbin/iptables -A INPUT   -p tcp -m tcp --dport 139 -m recent --name portscan --set -j DROP")
-                    os.system ('/sbin/iptables -A FORWARD -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix "Portscan:"')
+                    #os.system ('/sbin/iptables -A INPUT   -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix "Portscan:"')
                     os.system ("/sbin/iptables -A FORWARD -p tcp -m tcp --dport 139 -m recent --name portscan --set -j DROP")
+                    #os.system ('/sbin/iptables -A FORWARD -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix "Portscan:"')
+
                 if item.strip() == "portscan-ban-time":
+                    if (self.out[i].strip() == 0):
+                        continue
                     os.system ("/sbin/iptables -A INPUT   -m recent --name portscan --rcheck --seconds %s -j DROP" % (self.out[i].strip()))
                     os.system ("/sbin/iptables -A FORWARD -m recent --name portscan --rcheck --seconds %s -j DROP" % (self.out[i].strip()))
                     os.system ("/sbin/iptables -A INPUT   -m recent --name portscan --remove")
@@ -417,13 +501,13 @@ class CLI_Dict:
                         try:
                             return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() + int(args.split(" ")[4].strip()))))  + " 1";
                         except IndexError:
-                            return "300 1 " + args.split(" ")[2].strip()  + " 0 " + str(int((time.time() +86400))) + " 1";
+                            return "300 1 " + args.split(" ")[2].strip()  + " 0 0 1";
                     #Insert global (ip,connection)
                     if (args.split(" ")[1] == "ginsert"):
                         try:
                             return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() + int(args.split(" ")[4].strip()))))  + " 0";
                         except IndexError:
-                            return "300 1 " + args.split(" ")[2].strip() + " 0 " + str(int((time.time() +86400))) + " 0";
+                            return "300 1 " + args.split(" ")[2].strip() + " 0 0 0";
 
                     #Remove local (ip)
                     if (args.split(" ")[1] == "remove"):
