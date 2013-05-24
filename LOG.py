@@ -72,6 +72,12 @@ class sLog: #(object):
         return
 
     def WriteLine(self,ct, args):
-        self.file = open(self.logfolder + self.utime + "-Hive.log", 'a')
+        filename = self.logfolder + self.utime + "-Hive.log"
+        dir = os.path.dirname(filename)
+
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+
+        self.file = open(filename, 'a')
         self.file.write(str(time.strftime("%Y-%m-%d %H:%M"))+ ct + args + "\n")
         self.file.close()

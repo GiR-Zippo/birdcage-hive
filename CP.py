@@ -23,6 +23,7 @@ import time
 
 import SOCKS, FILEIO, LOG
 import sys, os, commands, threading
+import signal
 from collections import deque
 
 LOCK = threading.Lock()
@@ -86,11 +87,18 @@ class Fifo:
 #################################################
 class CP(object):
     _instance = None
-    _lock = threading.Lock()
+    _lock = threading.Lock()    
 
+    def signal_handler(self, signal, frame):
+        self.sLog.outString("");
+        self.sLog.outString("terminating...")
+        self.command("TP",self) 
+        return
     def __init__(self):
         self.buffer = Fifo()
         self.configfile= "./configs/bird.conf"
+
+        signal.signal(signal.SIGINT, self.signal_handler)
 
         #LogSystem braucht die Config sofort
         self.m_args = FILEIO.FileIO().ReadLine(self.configfile)
