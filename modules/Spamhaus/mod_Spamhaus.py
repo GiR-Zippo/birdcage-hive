@@ -61,7 +61,8 @@ class Master:
           self.instring = fileHandle.readlines()
           fileHandle.close()
         except IOError:
-          str1 = 'error!'
+          print 'error!'
+          return
 
         offset = 4
         for self.item in self.instring:

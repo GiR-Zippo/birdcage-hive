@@ -231,7 +231,10 @@ class CP(object):
 
     def refresh(self):
         while (self.buffer.hascontent() == True):
-            args, handler = self.buffer.pop()
+            try:
+                args, handler = self.buffer.pop()
+            except TypeError:
+                continue
 
             # Dummy Mode
             if (handler == "NULL"):

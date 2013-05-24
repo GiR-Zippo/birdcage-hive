@@ -186,6 +186,7 @@ class Drone:
         if (self.EnOutAdress):
             if not (args.split(" ")[0].strip() ==  "INIT"):
                 self.adchk = args.split(" ")[0].strip() + " " + args.split(" ")[1].strip()
+
                 if not (self.adchk in self.EnOutAdress):
                     return
         self.Buffer_Out(args)
