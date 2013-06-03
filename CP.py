@@ -304,7 +304,7 @@ class CP(object):
             for self.out in self.installed_mods:
                 if (self.out[3] == args.split(" ")[2]):
                     if self.out[1].stop():
-                        self.sLog.outString("Module " + out[3].strip() + " stopped.")
+                        self.sLog.outString("Module " + self.out[3].strip() + " stopped.")
                 self.i=self.i+1
 
         #Reload and Start Module X

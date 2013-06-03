@@ -1,0 +1,5 @@
+Das Modul ist ein einfacher TCP-Proxy.
+Noch ist es Alpha und nicht ganz Praxistauglich.
+
+Original Code:
+http://voorloopnul.com/blog/a-python-proxy-in-less-than-100-lines-of-code/
