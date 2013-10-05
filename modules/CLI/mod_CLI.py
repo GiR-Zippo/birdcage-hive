@@ -48,8 +48,8 @@ class Master(threading.Thread):
         return
 
     def run(self):
-        while self.check:
-            sys.stdout.write("\x1b7\x1b[%d;%df%s\x1b8" % (27, 0, ""))
+        while self.check == True:
+            #sys.stdout.write("\x1b7\x1b[%d;%df%s\x1b8" % (27, 0, ""))
             var = raw_input(self.active_module + "/Command:")
             sys.stdout.flush()
             self.clicommand(var)
@@ -113,13 +113,26 @@ class Master(threading.Thread):
                 self.writeline("Ya have to type in a modulename")
                 return True
 
+        # Switch to specific module
         if (args.split(" ")[0] == "use"):
+            if (args.split(" ")[1].strip() == ".."):
+                self.active_module = ""
+                return True
             try:
                 self.active_module = "mod_" + args.split(" ")[1].strip()
                 return True
             except IndexError:
                 self.writeline("Ya have to select a Module via use")
                 return True
+
+        # direct access module
+        if (args[0] == ">"):
+            args = args[1:]
+            self.tmod = "mod_" + args[:(len(args.split(" ")[0]))]
+            args = args[(len(args.split(" ")[0]) +1):]
+            self.output = self.CP.GetDictionary(self.tmod, args)
+            if (self.output):
+                self.CP.command (self.output, self)
 
         if (args.split(" ")[0] == "cli_test"):
             try:

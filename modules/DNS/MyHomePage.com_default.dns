@@ -1,0 +1,32 @@
+# Damit beginnen Kommentare
+# BEGIN und END markieren den DNS-Table bitte beachten das sind die EINZIGEN Commands mit ner Raute davor
+# Alles was zwischen Begin und End steht geht so in den DNS Table, also nix Kommentare eintragen
+
+domain=MyHomePage.com
+domain_number=ASKHETZNER
+#replace=127.0.0.1=22.33.44.55
+
+#BEGIN
+$TTL 7200
+@   IN SOA ns1.your-server.de. postmaster.your-server.de. (
+    2013100201   ; serial
+    14400        ; refresh
+    1800         ; retry
+    604800       ; expire
+    86400 )      ; minimum
+
+@                        IN NS      ns1.your-server.de.
+@                        IN NS      ns.second-ns.com.
+@                        IN NS      ns3.second-ns.de.
+
+@                     60 IN A       127.0.0.1
+mail                  60 IN A       127.0.0.1
+www                   60 IN A       127.0.0.1
+ftp                      IN CNAME   www
+imap                     IN CNAME   mail
+pop                      IN CNAME   mail
+relay                    IN CNAME   mail
+smtp                     IN CNAME   mail
+@                        IN MX 10   mail
+
+#END

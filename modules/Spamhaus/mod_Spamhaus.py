@@ -21,7 +21,7 @@
 #http://www.spamhaus.org/drop/drop.txt
 
 # BaseAddress
-import urllib2, CP, time, threading, sys, os, commands
+import urllib2, cookielib, CP, time, threading, sys, os, commands
 address = "301"
 m_version ="0.1"
 
@@ -55,13 +55,21 @@ class Master:
         return
 
     def refreshList(self):
-        urlStr = 'http://www.spamhaus.org/drop/drop.txt'
+	hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+	       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+	       'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+	       'Accept-Encoding': 'none',
+	       'Accept-Language': 'en-US,en;q=0.8',
+	       'Connection': 'keep-alive'}
+
+	site = 'http://www.spamhaus.org/drop/drop.txt'
+        urlStr = urllib2.Request(site, headers=hdr)
         try:
           fileHandle = urllib2.urlopen(urlStr)
           self.instring = fileHandle.readlines()
           fileHandle.close()
         except IOError:
-          print 'error!'
+          print 'Spamhaus error!'
           return
 
         offset = 4

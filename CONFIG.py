@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # encoding: iso-8859-1
 
 #
@@ -19,32 +17,27 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import time
+class Config:
+    def __init__(self, configFile):
+        self.file = open(configFile, "r")
+        self.str = self.file.read()
+        self.file.close()
+        return
 
-__author__="dasumba"
-__date__ ="$17.09.2011 17:31:44$"
+    def GetItem(self, args):
+        temp = self.str.split("\n")
+        for self.r_item in temp:
+            try:
+                if self.r_item[0] == "#":
+                    continue
+            except IndexError:
+                    continue
 
-if __name__ == "__main__":
-    ##Startup
-    print "  Birdcage V0.7a Hive-Edition"
-    print ""
-    print "          ___(__)___"
-    print "         /          \     "
-    print "        |     ___    |  "
-    print "        |    ('v')   | "
-    print "        |   ((___))  |  "
-    print "        |--/-'---'---| "
-    print ""
-    print "(c) Booksize"
-    print "Do anythin what you want to do..."
-    print ""
+            self.out = self.r_item.split("=")
+            idx = 0
+            for item in self.out:
+                idx = idx +1
+                if item.strip() == args:
+                    return self.out[idx].strip()
+        return ''
 
-import SOCKS, CP, FILEIO
-
-m_CP = CP.CP()
-m_Runnable = True
-
-while (m_Runnable == True):
-    time.sleep(0.003) #Take a short nap :)
-    if (m_CP.refresh() ==False):
-        m_Runnable = False

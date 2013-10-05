@@ -1,39 +1,21 @@
 # encoding: iso-8859-1
-
-#
-# Copyright (C) 20011-2013 by Booksize
-#
-# This program is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by the
-# Free Software Foundation; either version 2 of the License, or (at your
-# option) any later version.
-#
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-# more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program. If not, see <http://www.gnu.org/licenses/>.
-#
-
-import SocketServer
-
-import socket
-import select
-
 import threading
 import socket
+import select
 import zlib
 import string, StringIO,time
 from collections import deque
 from Crypto.Cipher import ARC4
 from Crypto.Hash import SHA256
 
-OutPort = 5022 #Change Socket to 5022
-InPort  = 5022
+import binascii
 
-#Decompressor for Input Stream
+INPORT = 5022
+OUTPORT = 5022
+DIFF = 0.05
+#################################################
+####      Decompressor for Input Stream      ####
+#################################################
 class ZipInputStream:
 
     def __init__(self, file):
@@ -57,7 +39,10 @@ class ZipInputStream:
                     self.zip = None # no more data
                     break
                 self.pos = self.pos + len(data)
-                self.data = self.data + self.zip.decompress(data)
+                try:
+                    self.data = self.data + self.zip.decompress(data)
+                except:
+                    return
 
     def seek(self, offset, whence=0):
         if whence == 0:
@@ -88,66 +73,193 @@ class ZipInputStream:
         self.offset = self.offset + len(data)
         return data
 
-class Drone:
-    def __init__(self,Name, IP,CP,IA,OA):
-        self.cp = CP;
-        self.ip = IP;
-        self.ID = "SCK";
-        self.Name = Name
-        self.in_IP = deque();
-        self.in_Data = deque();
-        self.incomming_ip = "";
-        self.out_Data = deque();
-        self.EnInAdress = []
-        if not (IA == "0"):
-            self.EnInAdress = IA.split(",")
-        self.EnOutAdress = []
-        if not (OA == "0"):
-            self.EnOutAdress = OA.split(",")
-        self.online = False
-        self.h = SHA256.new()
-        self.h.update(b'%s' % self.Name)
-        self.digest = self.h.hexdigest()
+#################################################
+####              SOCKET-WRAPPER             ####
+#################################################
+class SockMain:
+    def __init__(self, sock):
+        self.sock = sock
+        self.session = None
+        self.outbuffer = deque()
+        self.inbuffer = ''
+        self.ip = ''
         return
 
-    def Buffer_In(self,ip,data):
-        self.in_IP.append(ip);
-        self.in_Data.append(data);
+    def Connect(self,ip):
+        self.ip = ip
+        self.sock.connect((ip, OUTPORT))
         return
 
-    def Get_Buffer_In(self):
-        try:
-            return self.in_IP.popleft(), self.in_Data.popleft();
-        except IndexError:
-            pass
+    def SetSession(self, sess):
+        self.session = sess
+        return
 
-    def Buffer_Out(self, data):
-        self.out_Data.append(data);
-
-    def Get_Buffer_Out(self):
-        try:
-            return self.out_Data.popleft();
-        except IndexError:
-            pass
-
-    #Recive Datas
-    def recv_Data(self,ip,data):
-        self.Buffer_In(ip, data);
-        return;
-
-    #Popout Queue
     def Update(self):
-        self.SendPacket()
-        self.output = self.Get_Buffer_In();
-        if (self.output == None):
-            return;
+        is_readable = [self.sock]
+        is_writable = []
+        is_error = []
+        r, w, e = select.select(is_readable, is_writable, is_error, 0.05)
+        if r or w:
+            try:
+                self.reqsize = self.sock.recv(4)
+                self.reqsize = int((ord(self.reqsize[0]) *0x1000000) + (ord(self.reqsize[1]) *0x10000) + (ord(self.reqsize[2]) *0x100) + ord(self.reqsize[3]))
+                if (self.reqsize <= 0):
+                    return False
+                self.inbuffer = self.sock.recv(self.reqsize)
+                self.session.AddPacket(self.inbuffer)
+            except:
+                return False
+        return True
 
-        #self.incomming_ip = self.output[0];
-        self.data = self.output[1]
+    def SendPacket(self, data):
+        self.size = len(data)
+        self.data1 = 0xFF &(self.size>>24)
+        self.data2 = 0xFF &(self.size>>16)
+        self.data3 = 0xFF &(self.size>>8)
+        self.data4 = 0xFF & self.size
+        self.out = chr(self.data1)+ chr(self.data2) + chr(self.data3) + chr(self.data4) + data
+        self.sock.send(self.out)
+        return
+
+    def Close(self):
+        self.sock.close()
+        return
+
+class SocketMgr(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.listener = SockMain(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
+        self.listener.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.listener.sock.bind(("", INPORT))
+        self.listener.sock.listen(1)
+        self.Running = False
+        self.SocketList = []
+        self.Master = None
+        return
+
+    def SetMaster(self, Master):
+        self.Master = Master
+        return
+
+    def ConnectTo(self, ip):
+        try:
+            self.tsock = SockMain(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
+            self.tsock.Connect(ip)
+            self.SocketList.append((ip, self.tsock))
+        except:
+            return None
+        return self.tsock
+
+    def Listen(self):
+        is_readable = [self.listener.sock]
+        is_writable = []
+        is_error = []
+        r, w, e = select.select(is_readable, is_writable, is_error, 0.05)
+        if r:
+            channel, info = self.listener.sock.accept()
+            #print "connection from", info
+            try:
+                self.tsock = SockMain(channel)
+                for self.tsess in self.Master.SessionMgr.SessionList:
+                    if (self.tsess.IP == info[0]):
+                        self.tsess.SetSocket(self.tsock)
+                        self.SocketList.append((info[0], self.tsock))
+            except:
+                channel.close()
+        return
+
+    def stop(self):
+        self.Running=False
+        return
+
+    def run(self):
+        self.Running = True
+        while self.Running == True:
+            time.sleep(DIFF) #Take a nap :)
+            for self.tsock in self.SocketList:
+                if (self.tsock[1].Update() == False):
+                    self.SocketList.remove(self.tsock)
+            if(self.Running == True):
+                self.Listen()
+
+        self.listener.sock.shutdown(socket.SHUT_RDWR)
+        self.listener.sock.close()
+        for self.tsock in self.SocketList:
+            self.tsock[1].sock.shutdown(socket.SHUT_RDWR)
+            self.tsock[1].sock.close()
+
+class Session:
+    def __init__(self, Name, IP, In, Out, CP, Master):
+        self.ID = "SCK";
+        self.Name = Name.strip()
+        self.IP = IP
+        self.online = False
+
+        #Encryption
+        self.sha = SHA256.new()
+        self.sha.update(b'%s' % self.Name)
+        self.digest = self.sha.hexdigest()
+
+        #Handling for Restrictions
+        self.EnInAdress = []
+        if not (In == "0"):
+            self.EnInAdress = In.split(",")
+        self.EnOutAdress = []
+        if not (Out == "0"):
+            self.EnOutAdress = Out.split(",")
+        self.cp = CP
+        self.Master = Master
+        self.sock = self.Master.SocketMgr.ConnectTo(self.IP)
+        if(self.sock != None):
+            self.sock.SetSession(self)
+
+        #I/O Buffer
+        self.InPacketList =  deque()
+        self.OutPacketList = deque()
+        return
+
+    def SetSocket(self, sock):
+        self.sock = sock
+        self.sock.SetSession(self)
+        return
+
+    def Update(self):
+        while (len(self.InPacketList) > 0):
+            self.inc = self.InPacketList.popleft()
+            self.cp.command(self.inc,self)
+
+        while (len(self.OutPacketList) > 0):
+            self.out = self.OutPacketList.popleft()
+            try:
+                self.sock.SendPacket(self.out)
+            except:
+                self.sock = None
+        return
+
+    def writeline(self, data):
+        self.SendPacket(data)
+        return
+
+    def SendPacket(self, data):
+        self.cryp = ARC4.new(self.Master.Digest)
+        self.data = zlib.compress(data)
+        self.data = self.cryp.encrypt(self.data)
+        #print "OUT: " + data
+        if (self.EnOutAdress):
+            if not (data.split(" ")[0].strip() ==  "INIT"):
+                self.adchk = data.split(" ")[0].strip() + " " + data.split(" ")[1].strip()
+
+                if not (self.adchk in self.EnOutAdress):
+                    return
+        self.OutPacketList.append(self.data)
+        return
+
+    def AddPacket(self, data):
         self.cryp = ARC4.new(self.digest)
-        self.data = self.cryp.decrypt(self.data)
-        self.inc = ZipInputStream(StringIO.StringIO(self.data)).read();
-
+        self.data = self.cryp.decrypt(data)
+        self.data = ZipInputStream(StringIO.StringIO(self.data)).read()
+        self.inc = self.data
+        #print "IN: " + self.data
         #Check if this drone has restrictions
         if (self.EnInAdress):
             if not (self.inc.split(" ")[0].strip() == "INIT"):
@@ -158,107 +270,66 @@ class Drone:
         #Check for DroneName
         if (self.inc.split(" ")[0] ==  "002"):
             if (self.inc.split(" ")[1] ==  "2"):
-                self.Name = self.inc.split(" ")[2]
-                if (DroneUpdater.KnownDronesName[DroneUpdater.KnownDronesIP.index(self.ip)] == self.Name.strip()):
-                    #print "Drone %s online." % self.Name
+                self.tName = self.inc.split(" ")[2]
+                if (self.tName == self.Name.strip()):
+                    print "Drone %s online." % self.Name
                     self.online = True
                 return;
+        self.InPacketList.append(self.data)
+        return
 
-        self.cp.command(self.inc,self);
-        return;
-
-    def SendPacket(self):
-        self.output = self.Get_Buffer_Out();
-        if (self.output == None):
-            return;
-
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            self.cryp = ARC4.new(Listener.Digest)
-            self.data = zlib.compress(self.output)
-            self.data = self.cryp.encrypt(self.data)
-            self.sock.sendto(self.data , (self.ip, OutPort))
-        except socket.error:
-            pass
-        self.sock.close()
-
-    def writeline(self,args):
-        if (self.EnOutAdress):
-            if not (args.split(" ")[0].strip() ==  "INIT"):
-                self.adchk = args.split(" ")[0].strip() + " " + args.split(" ")[1].strip()
-
-                if not (self.adchk in self.EnOutAdress):
-                    return
-        self.Buffer_Out(args)
-
-#Updater der Sessions, bis ich ne Alternative hab
-class DroneUpdater(threading.Thread):
-    KnownDronesIP = []
-    KnownDronesName = []
-    KnownDronesAccessor = []
-    Runnable = True
-    CP = None
-    def __init__(self, CP):
-        threading.Thread.__init__(self)
-        DroneUpdater.CP = CP
-
-    def insertNewDrone(self, ip, name, accessor):
-        DroneUpdater.KnownDronesIP.append(ip.strip())
-        DroneUpdater.KnownDronesName.append(name.strip())
-        DroneUpdater.KnownDronesAccessor.append(accessor)
-
-    def run(self):
-        while (DroneUpdater.Runnable == True):
-            time.sleep(0.01) #Take a nap :)
-            for self.accessor in DroneUpdater.KnownDronesAccessor:
-                self.accessor.Update();
-
-    def stop(self):
-        DroneUpdater.Runnable = False;
-
-    def writeTo(self,Name, args):
-        self.index = DroneUpdater.KnownDronesName.index(name.strip())
-        DroneUpdater.KnownDronesAccessor[index].writeline(args)
-
-    def writeline(self,args):
-        for self.accessor in DroneUpdater.KnownDronesAccessor:
-            self.accessor.writeline(args)
-
-#Helper
-class UDP_Listener(SocketServer.BaseRequestHandler):
-    def handle(self):
-        data = self.request[0].strip()
-        #socket = self.request[1]
-
-        try:
-            self.index = DroneUpdater.KnownDronesIP.index(self.client_address[0])
-            if (self.index > -1):
-                DroneUpdater.KnownDronesAccessor[self.index].recv_Data(self.client_address[0],data)
-        except (ValueError):
-            pass
-
-#Our Listener
-class Listener(threading.Thread):
-    DroneUpdater = None
-    Digest = None
+class SessionMgr(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        HOST, PORT = "0.0.0.0", InPort
-        self.server = SocketServer.UDPServer((HOST, PORT), UDP_Listener)
+        self.Running = False
+        self.SessionList = []
+        return
+
+    def AppendSession(self, sess):
+        self.SessionList.append(sess)
+        return
 
     def run(self):
-        self.server.serve_forever()
+        self.Running = True
+        while self.Running:
+            time.sleep(DIFF)
+            for self.sess in self.SessionList:
+                self.sess.Update()
+        return
 
     def stop(self):
-        self.server.shutdown()
+        self.Running = False
+        return
+
+    def writeline(self, data):
+        for self.sess in self.SessionList:
+            self.sess.SendPacket(data)
+
+class Listener(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.SocketMgr = SocketMgr()
+        self.SocketMgr.SetMaster(self)
+        self.SessionMgr = SessionMgr()
+        self.CP = None
+        self.Digest = None
+        return
+
+    def run(self):
+        self.SessionMgr.start()
+        self.SocketMgr.start()
+        return
+
+    def stop(self):
+        self.SocketMgr.stop()
+        self.SessionMgr.stop()
+        return
 
     def config(self, args, cp):
+        self.CP = cp
         self.h = SHA256.new()
-        self.h.update(b'%s' % cp.GetDroneName())
-        Listener.Digest = self.h.hexdigest()
-
-        Listener.CP = cp
-        Listener.DroneUpdater = DroneUpdater(cp)
+        self.h.update(b'%s' % self.CP.Drone_Name)
+        self.Digest = self.h.hexdigest()
         self.cip = ""
         self.cdrone = ""
         self.cinadress = ""
@@ -280,7 +351,7 @@ class Listener(threading.Thread):
                 self.coutadress = self.item.split("=")[1].strip()
             if ("Drone-Insert" in self.item):
                 print "Adding Drone: " + self.cdrone
-                Listener.DroneUpdater.insertNewDrone(self.cip, self.cdrone, (Drone(self.cdrone, self.cip, cp, self.cinadress, self.coutadress)))
+                self.SessionMgr.AppendSession(Session(self.cdrone, self.cip, self.cinadress, self.coutadress, self.CP, self))
                 self.cip = ""
                 self.cdrone = ""
                 self.cinadress = ""

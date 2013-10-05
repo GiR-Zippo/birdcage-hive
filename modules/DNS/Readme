@@ -1,0 +1,27 @@
+Dieses Modul stellt ZoneFiles auf Hetzners KonsoleH ein.
+
+Vorrausetzung ist selbstverständlich das man dort eine Domain registriert hat und
+man die ID der Domain kennt.
+
+Achtung die Dateien enden immer auf .dns, die Ext darf man nicht beim laden angeben.
+
+Adresse: 401
+Syntax:
+    load FILENAME     //Läd ein ZoneFile
+    load default      //Läd ein ZoneFile mit der Endung _default.dns
+    load default all  //Läd alle default ZoneFiles die in der Config definiert wurden
+
+
+DNS-File:
+Das DNS-File hat einen Header mit dem das Modul selbst arbeitet.
+
+"domain=" ist der DomainName
+"domain_number=" ist eine interne Nummer von Hetzner die man aus dem HTML-Code vom KonsoleH-Panel in Erfahrung bringen kann.
+
+"replace=127.0.0.1=22.33.44.55" damit kann man die IP 127.0.0.1 innerhalb des Zonefile schnell temporär ersetzen.
+Dieser Befehl ist nicht zwingend notwending und kann auskommeniert werden.
+
+"#BEGIN" markiert den Anfang eines Zonefiles.
+"#END" markiert das Ende.
+
+Achtung: Zwischen der letzten Zeile des Zonefiles und #END kann es vorkommen das man eine Leerzeile setzen muss.

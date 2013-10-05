@@ -310,6 +310,7 @@ class Master(threading.Thread):
         ## Setup the Buffer
         self.buffer = Fifo()
         os.system ("/sbin/iptables --flush")
+        os.system ("/sbin/iptables -t mangle --flush")
 
         # Do initialization what you have to do
         threading.Thread.__init__(self)
@@ -382,12 +383,19 @@ class Master(threading.Thread):
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/tcp_syncookies")
                 if item.strip() == "ip_forward":
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/ip_forward")
+                if item.strip() == "icmp_accept_dest_ip":
+                    os.system ("/sbin/iptables -A INPUT -d " + self.out[i].strip() + " -p ICMP --icmp-type 8 -j ACCEPT")
+                if item.strip() == "icmp_ignore_all":
+                    if (self.out[i].strip() == 1):
+                        os.system ("/sbin/iptables -A INPUT -p ICMP -j DROP")
                 if item.strip() == "icmp_echo_ignore_broadcasts":
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts")
                 if item.strip() == "log_martians":
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/conf/all/log_martians")
                 if item.strip() == "icmp_ignore_bogus_error_responses":
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses")
+                if item.strip() == "log_martians":
+                    os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/conf/all/log_martians")
                 if item.strip() == "rp_filter":
                     os.system ("echo " + self.out[i].strip() + " > /proc/sys/net/ipv4/conf/all/rp_filter")
                     os.system ("for i in /proc/sys/net/ipv4/conf/*/rp_filter ; do \necho 1 > $i \ndone")
@@ -417,6 +425,11 @@ class Master(threading.Thread):
                 if item.strip() == "ping":
                     if self.out[i].strip() == "0":
                         os.system ("/sbin/iptables -A INPUT -p icmp --icmp-type echo-request -j REJECT --reject-with icmp-host-unreachable")
+                if item.strip() == "synlimit":
+                    os.system ("/sbin/iptables -N synflood")
+                    os.system ("/sbin/iptables -A synflood -m limit --limit "+ self.out[i].strip() + "/second --limit-burst 24 -j RETURN")
+                    os.system ("/sbin/iptables -A synflood -j REJECT")
+                    os.system ("/sbin/iptables -A INPUT -p tcp --syn -j synflood")
                 if item.strip() == "conn-limit-log":
                     if int(self.out[i].strip()) > 0:
                         os.system ("/sbin/iptables -A INPUT -p udp -m connlimit --connlimit-above " + self.out[i].strip() + " -j LOG --log-level 4 --log-prefix 'UDP-In " + self.out[i].strip() + "/m '")

@@ -1,1 +1,3 @@
 Die eigentliche CLI, ohne die gibts keine Benutzereingaben.
+Shortcut:
+>MODULE Befehl Args //direktes ausführen eines Befehls

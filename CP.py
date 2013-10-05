@@ -129,8 +129,7 @@ class CP(object):
         self.m_Sock_listen = self.m_Sock.Listener()
         self.m_Sock_listen.start()
         self.m_Sock.debug = False
-        self.m_Sock_out = self.m_Sock.DroneUpdater(self)
-        self.m_Sock_out.start()
+        self.m_Sock_out = self.m_Sock_listen.SessionMgr
         self.m_Events.start()
 
         #UserMods
@@ -190,7 +189,6 @@ class CP(object):
                 continue
 
         self.m_Sock_listen.stop()
-        self.m_Sock_out.stop()
         self.sLog.outString("Bye.")
 
     #################################################
