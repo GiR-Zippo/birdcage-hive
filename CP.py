@@ -243,14 +243,21 @@ class CP(object):
                 self.StopMods()
                 return False
 
-                #If we get a init from network
-            if args == "INIT":
-                self.ToSocket("002 2 " + self.Drone_Name) #Send our Name
-                for item in self.installed_mods:
-                    item[1].initfromdrone(args, handler)
-
-            #Check if we've got an address instead of junk
+            #If we get a init from network
             try:
+                if args.split(" ")[0] == "INIT":
+                    for item in self.installed_mods:
+                        item[1].initfromdrone(int(args.split(" ")[1]), handler)
+                    return
+            except IndexError:
+                if args == "INIT":
+                    self.ToSocket("002 2 " + self.Drone_Name) #Send our Name
+                    for item in self.installed_mods:
+                        item[1].initfromdrone(0, handler)
+                    return
+
+            try:
+                #Check if we've got an address instead of junk
                 if (int(args.split(" ")[0]) == 1):
                     self.Internal_Commands(args, handler)
 
@@ -279,7 +286,7 @@ class CP(object):
 
     def GetModulebyMaster(self, master):
         for self.out in self.installed_mods:
-            if (self.out[1] == name):
+            if (self.out[1] == master):
                 return self.out
         return None
 
@@ -335,8 +342,8 @@ class CP(object):
 
         #List all Authed and Connected Drones
         if (args.split(" ")[1]=="7"):
-            for self.out in self.m_Sock.DroneUpdater.KnownDronesName:
-                handler.writeline(self.out)
+            for self.out in self.m_Sock_listen.SessionMgr.SessionList:
+                handler.writeline(self.out.Name)
 
         #SendFile to Drone
         #Drone, Source, Target
@@ -399,7 +406,7 @@ class CP(object):
         try:
             FILEIO.FileIO().WriteToFileAsync(self.name, args, 'w')
             self.ReloadMod(entry)
-            self.sLog.outString("Recived newer Version of Module: " + self.name)
+            self.sLog.outString("Received newer Version of Module: " + self.name)
         except IOError:
             pass
 

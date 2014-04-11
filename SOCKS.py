@@ -3,16 +3,19 @@ import threading
 import socket
 import select
 import zlib
+import binascii
+import time
 import string, StringIO,time
 from collections import deque
 from Crypto.Cipher import ARC4
 from Crypto.Hash import SHA256
-
-import binascii
+from Crypto.Cipher import CAST
+from Crypto import Random
+from Crypto.Protocol.KDF import PBKDF2
 
 INPORT = 5022
 OUTPORT = 5022
-DIFF = 0.05
+DIFF = 0.005
 #################################################
 ####      Decompressor for Input Stream      ####
 #################################################
@@ -98,11 +101,14 @@ class SockMain:
         is_readable = [self.sock]
         is_writable = []
         is_error = []
-        r, w, e = select.select(is_readable, is_writable, is_error, 0.05)
+        r, w, e = select.select(is_readable, is_writable, is_error, DIFF)
         if r or w:
             try:
-                self.reqsize = self.sock.recv(4)
-                self.reqsize = int((ord(self.reqsize[0]) *0x1000000) + (ord(self.reqsize[1]) *0x10000) + (ord(self.reqsize[2]) *0x100) + ord(self.reqsize[3]))
+                buff = self.sock.recv(4)
+                self.reqsize  = (0xFF & ord(buff[0])) << 24
+                self.reqsize += (0xFF & ord(buff[1])) << 16
+                self.reqsize += (0xFF & ord(buff[2])) << 8
+                self.reqsize += (0xFF & ord(buff[3]))
                 if (self.reqsize <= 0):
                     return False
                 self.inbuffer = self.sock.recv(self.reqsize)
@@ -117,6 +123,7 @@ class SockMain:
         self.data2 = 0xFF &(self.size>>16)
         self.data3 = 0xFF &(self.size>>8)
         self.data4 = 0xFF & self.size
+
         self.out = chr(self.data1)+ chr(self.data2) + chr(self.data3) + chr(self.data4) + data
         self.sock.send(self.out)
         return
@@ -143,27 +150,28 @@ class SocketMgr(threading.Thread):
 
     def ConnectTo(self, ip):
         try:
-            self.tsock = SockMain(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
-            self.tsock.Connect(ip)
-            self.SocketList.append((ip, self.tsock))
-        except:
+            tsock = SockMain(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
+            tsock.Connect(ip)
+            self.SocketList.append((ip, tsock))
+        except socket.error:
             return None
-        return self.tsock
+        return tsock
 
     def Listen(self):
         is_readable = [self.listener.sock]
         is_writable = []
         is_error = []
-        r, w, e = select.select(is_readable, is_writable, is_error, 0.05)
+        r, w, e = select.select(is_readable, is_writable, is_error, DIFF)
         if r:
+            0
             channel, info = self.listener.sock.accept()
             #print "connection from", info
             try:
-                self.tsock = SockMain(channel)
+                tsock = SockMain(channel)
                 for self.tsess in self.Master.SessionMgr.SessionList:
                     if (self.tsess.IP == info[0]):
-                        self.tsess.SetSocket(self.tsock)
-                        self.SocketList.append((info[0], self.tsock))
+                        self.tsess.SetSocket(tsock)
+                        self.SocketList.append((info[0], tsock))
             except:
                 channel.close()
         return
@@ -176,30 +184,33 @@ class SocketMgr(threading.Thread):
         self.Running = True
         while self.Running == True:
             time.sleep(DIFF) #Take a nap :)
-            for self.tsock in self.SocketList:
-                if (self.tsock[1].Update() == False):
-                    self.SocketList.remove(self.tsock)
+            for tsock in self.SocketList:
+                if (tsock[1].Update() == False):
+                    self.SocketList.remove(tsock)
             if(self.Running == True):
                 self.Listen()
 
         self.listener.sock.shutdown(socket.SHUT_RDWR)
         self.listener.sock.close()
-        for self.tsock in self.SocketList:
-            self.tsock[1].sock.shutdown(socket.SHUT_RDWR)
-            self.tsock[1].sock.close()
+        for tsock in self.SocketList:
+            tsock[1].sock.shutdown(socket.SHUT_RDWR)
+            tsock[1].sock.close()
 
 class Session:
     def __init__(self, Name, IP, In, Out, CP, Master):
+        self.cp = CP
+        self.Master = Master
         self.ID = "SCK";
         self.Name = Name.strip()
         self.IP = IP
         self.online = False
-
+        self.fastlane = []
         #Encryption
         self.sha = SHA256.new()
         self.sha.update(b'%s' % self.Name)
         self.digest = self.sha.hexdigest()
-
+        self.inpbk = PBKDF2(self.digest, self.digest, 16)
+        self.outpbk = PBKDF2(self.Master.Digest, self.Master.Digest, 16)
         #Handling for Restrictions
         self.EnInAdress = []
         if not (In == "0"):
@@ -207,8 +218,6 @@ class Session:
         self.EnOutAdress = []
         if not (Out == "0"):
             self.EnOutAdress = Out.split(",")
-        self.cp = CP
-        self.Master = Master
         self.sock = self.Master.SocketMgr.ConnectTo(self.IP)
         if(self.sock != None):
             self.sock.SetSession(self)
@@ -216,6 +225,28 @@ class Session:
         #I/O Buffer
         self.InPacketList =  deque()
         self.OutPacketList = deque()
+        return
+
+    def AddFastLane(self, address, module):
+        for flane in self.fastlane:
+            if flane[0] == address:
+                return
+        self.fastlane.append([address, module])
+        return
+
+    def CheckForFastLane(self, data):
+        addy = data.split(" ")[0]
+        for fast in self.fastlane:
+            if fast[0] == addy:
+                fast[1].FastResponse(data, self)
+                return True
+        return False
+
+    def RemoveFromFastLane(self, address):
+        for fast in self.fastlane:
+            if fast[0] == address:
+                self.fastlane.remove(fast)
+                return
         return
 
     def SetSocket(self, sock):
@@ -226,7 +257,8 @@ class Session:
     def Update(self):
         while (len(self.InPacketList) > 0):
             self.inc = self.InPacketList.popleft()
-            self.cp.command(self.inc,self)
+            if (self.CheckForFastLane(self.inc) == False):
+                self.cp.command(self.inc,self)
 
         while (len(self.OutPacketList) > 0):
             self.out = self.OutPacketList.popleft()
@@ -244,6 +276,9 @@ class Session:
         self.cryp = ARC4.new(self.Master.Digest)
         self.data = zlib.compress(data)
         self.data = self.cryp.encrypt(self.data)
+        iv = Random.new().read(CAST.block_size)
+        cipher = CAST.new(self.outpbk, CAST.MODE_OPENPGP, iv)
+        self.data = cipher.encrypt(self.data)
         #print "OUT: " + data
         if (self.EnOutAdress):
             if not (data.split(" ")[0].strip() ==  "INIT"):
@@ -256,7 +291,12 @@ class Session:
 
     def AddPacket(self, data):
         self.cryp = ARC4.new(self.digest)
-        self.data = self.cryp.decrypt(data)
+        eiv = data[:CAST.block_size+2]
+        ciphertext = data[CAST.block_size+2:]
+        cipher = CAST.new(self.inpbk, CAST.MODE_OPENPGP, eiv)
+        self.data = cipher.decrypt(ciphertext)
+
+        self.data = self.cryp.decrypt(self.data)
         self.data = ZipInputStream(StringIO.StringIO(self.data)).read()
         self.inc = self.data
         #print "IN: " + self.data
@@ -285,6 +325,9 @@ class SessionMgr(threading.Thread):
         self.SessionList = []
         return
 
+    def NewSession(self, cdrone, cip, cinadress, coutadress, CP, Master):
+        sess = Session(cdrone, cip, cinadress, coutadress, CP, Master)
+        self.AppendSession(sess)
     def AppendSession(self, sess):
         self.SessionList.append(sess)
         return
@@ -351,7 +394,7 @@ class Listener(threading.Thread):
                 self.coutadress = self.item.split("=")[1].strip()
             if ("Drone-Insert" in self.item):
                 print "Adding Drone: " + self.cdrone
-                self.SessionMgr.AppendSession(Session(self.cdrone, self.cip, self.cinadress, self.coutadress, self.CP, self))
+                self.SessionMgr.NewSession(self.cdrone, self.cip, self.cinadress, self.coutadress, self.CP, self)
                 self.cip = ""
                 self.cdrone = ""
                 self.cinadress = ""

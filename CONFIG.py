@@ -19,10 +19,19 @@
 
 class Config:
     def __init__(self, configFile):
-        self.file = open(configFile, "r")
+        try:
+            self.file = open(configFile, "r")
+        except:
+            self.str = ''
+            return
         self.str = self.file.read()
         self.file.close()
         return
+
+    def CheckFile(self):
+        if (len(self.str) > 0):
+            return True
+        return False
 
     def GetItem(self, args):
         temp = self.str.split("\n")
@@ -41,3 +50,21 @@ class Config:
                     return self.out[idx].strip()
         return ''
 
+    def GetItemList(self, args):
+        list = []
+        temp = self.str.split("\n")
+        for self.r_item in temp:
+            try:
+                if self.r_item[0] == "#":
+                    continue
+            except IndexError:
+                    continue
+
+            self.out = self.r_item.split("=")
+            if (self.out[0].strip() == args):
+                try:
+                    for litem in self.out[1].split(','):
+                        list.append(litem.strip())
+                except:
+                    list.append(self.out[1].strip())
+        return list
