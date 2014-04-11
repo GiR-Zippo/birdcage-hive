@@ -25,3 +25,17 @@ Dieser Befehl ist nicht zwingend notwending und kann auskommeniert werden.
 "#END" markiert das Ende.
 
 Achtung: Zwischen der letzten Zeile des Zonefiles und #END kann es vorkommen das man eine Leerzeile setzen muss.
+
+
+Interne-Addressen:
+410 10 dateiname backParams                  #Damit kann man vom Modul ein Zonefile anfordern
+Liefert: backParams domain domainID zonefile
+BSP:
+Anforderung: 400 10 myHP.com 123 12
+Rückgabe:    123 12 myHP.com 2h498745h InhaltDesDNSFiles
+Routine zum Puzzeln:
+data = ""
+for out in refData:
+    data = data + out + " "
+
+410 11 URL-Name HetzerID InhaltDesDNSFiles    #Damit kann man von einem Modul aus ein Zonefile temporär ändern

@@ -21,7 +21,6 @@ import CP
 import urllib
 import urllib2
 import cookielib
-import FILEIO
 import CONFIG
 
 #Base-Address
@@ -63,7 +62,7 @@ class DNS:
         if (contents.find('value="Zonefile wurde erfolgreich ersetzt"') != -1):
             if (self.handler.ID != 'SCK'):
                 self.handler.writeline("Zonefile wurde erfolgreich ersetzt.")
-        print contents
+        #print contents
         return
 
     def Login(self):
@@ -88,7 +87,7 @@ class DNS:
         self.SendData(authentication_url, payload)
         return
 
-    def GetFile(self, handler, file):
+    def _GetFile(self, handler, file):
         self.zonefile = ''
         replace = ''
         start = False
@@ -140,12 +139,12 @@ class DNS:
         if (args == 'all'):
             self.Login()
             for data in self.Master.ALLDEFAULT:
-                if (self.GetFile(handler, data.strip() + "_default.dns") == False):
+                if (self._GetFile(handler, data.strip() + "_default.dns") == False):
                     continue
                 self.WriteDNSData()
             return
 
-        if (self.GetFile(handler, args.strip() + "_default.dns") == False):
+        if (self._GetFile(handler, args.strip() + "_default.dns") == False):
             return
 
         self.Login()
@@ -156,13 +155,35 @@ class DNS:
 
     def Load(self, handler, args):
         self.handler = handler
-        if (self.GetFile(handler, args.strip() + ".dns") == False):
+        if (self._GetFile(handler, args.strip() + ".dns") == False):
             return
 
         self.Login()
         self.WriteDNSData()
         if (handler.ID != 'SCK'):
-            handler.writeline("DNS-Table replaced...")
+            if(handler.ID != 'NULL'):
+                handler.writeline("DNS-Table replaced...")
+        return
+
+    #Internes Zeugs
+    #Mit dem Befehl kommt der DNS-Table zum Modul
+    def GetFile(self, handler, name, args):
+        if (self._GetFile(handler, name.strip() + ".dns") == False):
+            return
+        out = args + self.domain + ' ' + self.domainID + ' ' + self.zonefile
+        if (handler.ID == 'SCK'):
+            handler.writeline(out, "NULL")
+        else:
+            self.Master.CP.command(out, "NULL")
+        return
+
+    #Damit gehts vom Modul direkt zu Hetzner
+    def SetFile(self, handler, name, ID, args):
+        self.domain   = name
+        self.domainID = ID
+        self.zonefile = args
+        self.Login()
+        self.WriteDNSData()
         return
 
 class Master:
@@ -199,12 +220,23 @@ class Master:
         if omv[0] == address:
             if omv[1] == "1":
                 template = omv[2].strip()
-                self.DNS.ChangeZoneFile(handler, template)
+                self.DNS.Load(handler, template)
                 return
-            if omv[1] == "2":
+            elif omv[1] == "2":
                 template = omv[2].strip()
                 self.DNS.LoadDefault(handler, template)
                 return
+            elif omv[1] == "10":
+                template = omv[2].strip()
+                length = len(omv[2].strip()) + len(omv[1].strip()) + len(omv[0].strip()) +3
+                recArgs = args[length:]
+                self.DNS.GetFile(handler, template, recArgs)
+            elif omv[1] == "11":
+                template   = omv[2].strip()
+                templateID = omv[3].strip()
+                length     = len(omv[3].strip()) + len(omv[2].strip()) + len(omv[1].strip()) + len(omv[0].strip()) + 4
+                recArgs = args[length:]
+                self.DNS.SetFile(handler, template, templateID, recArgs)
         return
 
     def stop(self):
