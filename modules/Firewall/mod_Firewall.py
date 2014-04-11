@@ -23,7 +23,7 @@ from collections import deque
 
 # BaseAddress
 address = "300"
-m_version ="0.3"
+m_version ="0.4"
 LOCK = threading.Lock()
 
 #The FIFO-Buffer for incomming commands
@@ -157,6 +157,7 @@ class Firewall:
         return
 
     def ShowBlackRange(self,handler):
+        self.blackrange = sorted(self.blackrange, key=lambda name: name[0])
         for self.name, self.range, self.loc in self.blackrange:
             if (handler.ID == "SCK"):
                 if (self.loc == 0):
@@ -166,6 +167,28 @@ class Firewall:
                     handler.writeline ("%s %s Global" % (self.name, self.range))
                 else:
                     handler.writeline ("%s %s Local" % (self.name, self.range))
+        return
+
+    def ExportBlackRange(self,handler, args):
+        fp = open(args, 'w')
+        for name, range, loc in self.blackrange:
+            fp.write(name)
+            fp.write(" ")
+            fp.write(range)
+            fp.write(" ")
+            fp.write(str(loc))
+            fp.write("\r\n")
+        fp.close()
+        return
+
+    def ImportBlackRange(self,handler, args):
+        fp = open(args, 'r')
+        for i in fp.readlines():
+            try:
+                self.InsertBlackRange(i.split(" ")[0], i.split(" ")[1], int(i.split(" ")[2]))
+            except IndexError:
+                continue
+        fp.close()
         return
 
     def InsertBlackPort(self, port, type):
@@ -294,12 +317,35 @@ class Firewall:
         handler.writeline ("Blacklist: All %s - Local %s - Global %s" % (self.all, self.loc, self.glob))
         return
 
+    def Help(self, handler):
+        handler.writeline ("")
+        handler.writeline ("blacklist insert IP              = Local  IP ban")
+        handler.writeline ("blacklist ginsert IP             = Global IP ban")
+        handler.writeline ("blacklist remove IP              = Remove local IP-ban")
+        handler.writeline ("blacklist gremove IP             = Remove global IP-ban")
+        handler.writeline ("blacklist show                   = Shows the IP-bans")
+        handler.writeline ("")
+        handler.writeline ("whitelist insert IP              = whitelist IP local")
+        handler.writeline ("whitelist ginsert IP             = whitelist IP global")
+        handler.writeline ("whitelist remove IP              = Remove the IP from the local whitelist")
+        handler.writeline ("whitelist gremove IP             = Remove the IP from the global whitelist")
+        handler.writeline ("whitelist show                   = Shows the Whitelist")
+        handler.writeline ("")
+        handler.writeline ("status                           = gives the Firewall statistics")
+        handler.writeline ("")
+        handler.writeline ("rangeban insert Name Start-End   = Block the whole IP-Range local")
+        handler.writeline ("rangeban ginsert Name Start-End  = Block the whole IP-Range global")
+        handler.writeline ("rangeban remove Name             = Remove rangeban local")
+        handler.writeline ("rangeban gremove Name            = Remove rangeban global")
+        handler.writeline ("rangeban show                    = Shows the Rangebans")
+        handler.writeline ("rangeban export Filename         = Export the Rangebans")
+        handler.writeline ("rangeban import Filename         = Import the Rangebans")
 
 ## define Checking-Thread
 class Master(threading.Thread):
-    check = True;
-    wait=True;
-    interval = 1;
+    check = True
+    wait=True
+    interval = 1
     CP #Pointer for the CP
 
     def __init__(self,CP):
@@ -317,12 +363,15 @@ class Master(threading.Thread):
         self.firewall = Firewall(self.CP)
 
     def initfromdrone(self, args, handler):
-        self.firewall.ShowWhitelist(handler)
-        self.firewall.ShowBlacklist(handler)
-        self.firewall.ShowBlackRange(handler)
+        if (int(args) == int(address)):
+            self.firewall.ShowWhitelist(handler)
+            self.firewall.ShowBlacklist(handler)
+            self.firewall.ShowBlackRange(handler)
         return
 
     def run(self):
+        #Initialize the firewall
+        self.CP.ToSocket("INIT " + address)
         while Master.check:
             self.update()
             self.firewall.Update()
@@ -459,7 +508,7 @@ class Master(threading.Thread):
                     self.CP.ToSocket("300 2 " + omv[2])
                     self.firewall.BlackListRemove(omv[2])
                 if omv[1] == "4":
-                    self.firewall.ShowBlacklist(handler);
+                    self.firewall.ShowBlacklist(handler)
 
                 #WhiteList
                 if omv[1] == "10":
@@ -483,7 +532,13 @@ class Master(threading.Thread):
                     self.firewall.RemoveBlackRange(omv[3], int(omv[2]))
                 if omv[1] == "32":
                     self.firewall.ShowBlackRange(handler)
+                if omv[1] == "33":
+                    self.firewall.ExportBlackRange(handler, omv[2])
+                if omv[1] == "34":
+                    self.firewall.ImportBlackRange(handler, omv[2])
 
+                if omv[1] == "255":
+                    self.firewall.Help(handler)
         return
     def stop(self):
         self.firewall.BlackListRemoveAll()
@@ -512,22 +567,22 @@ class CLI_Dict:
                     #Insert local (ip,connection)
                     if (args.split(" ")[1] == "insert"):
                         try:
-                            return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() + int(args.split(" ")[4].strip()))))  + " 1";
+                            return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() + int(args.split(" ")[4].strip()))))  + " 1"
                         except IndexError:
-                            return "300 1 " + args.split(" ")[2].strip()  + " 0 0 1";
+                            return "300 1 " + args.split(" ")[2].strip()  + " 0 0 1"
                     #Insert global (ip,connection)
                     if (args.split(" ")[1] == "ginsert"):
                         try:
-                            return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() + int(args.split(" ")[4].strip()))))  + " 0";
+                            return "300 1 " + args.split(" ")[2].strip() + " " + args.split(" ")[3].strip() + " " + str(int((time.time() + int(args.split(" ")[4].strip()))))  + " 0"
                         except IndexError:
-                            return "300 1 " + args.split(" ")[2].strip() + " 0 0 0";
+                            return "300 1 " + args.split(" ")[2].strip() + " 0 0 0"
 
                     #Remove local (ip)
                     if (args.split(" ")[1] == "remove"):
-                        return "300 2 " + args.split(" ")[2].strip();
+                        return "300 2 " + args.split(" ")[2].strip()
                     #Remove global (ip)gremove
                     if (args.split(" ")[1] == "gremove"):
-                        return "300 3 " + args.split(" ")[2].strip();
+                        return "300 3 " + args.split(" ")[2].strip()
                     #show the blacklist
                     if (args.split(" ")[1] == "show"):
                         return "300 4"
@@ -535,13 +590,13 @@ class CLI_Dict:
             if (args.split(" ")[0] == "whitelist"):
                 if (self.maxlen >= 1):
                     if (args.split(" ")[1] == "insert"):
-                        return "300 10 " + args.split(" ")[2].strip() + " 1";
+                        return "300 10 " + args.split(" ")[2].strip() + " 1"
                     if (args.split(" ")[1] == "ginsert"):
-                        return "300 10 " + args.split(" ")[2].strip() + " 0";
+                        return "300 10 " + args.split(" ")[2].strip() + " 0"
                     if (args.split(" ")[1] == "remove"):
-                        return "300 11 " + args.split(" ")[2].strip();
+                        return "300 11 " + args.split(" ")[2].strip()
                     if (args.split(" ")[1] == "gremove"):
-                        return "300 12 " + args.split(" ")[2].strip();
+                        return "300 12 " + args.split(" ")[2].strip()
                     #show the whitelist
                     if (args.split(" ")[1] == "show"):
                             return "300 13"
@@ -556,7 +611,13 @@ class CLI_Dict:
                     if (args.split(" ")[1] == "gremove"):
                         return "300 31 0 " + (args.split(" ")[2].strip())
                     if (args.split(" ")[1] == "show"):
-                            return "300 32"
+                        return "300 32"
+                    if (args.split(" ")[1] == "export"):
+                        return "300 33 " + (args.split(" ")[2].strip())
+                    if (args.split(" ")[1] == "import"):
+                        return "300 34 " + (args.split(" ")[2].strip())
+            if (args.split(" ")[0].strip() == "help"):
+                return "300 255"
         except IndexError:
             print args
             return
@@ -587,3 +648,5 @@ class CLI_Dict:
 # 300 30                        = rangeban insert | ginsert (Name Range)
 # 300 31                        = rangeban remove | gremove (Name)
 # 300 32                        = rangeban show
+# 300 33                        = rangeban export filename
+# 300 34                        = rangeban import filename

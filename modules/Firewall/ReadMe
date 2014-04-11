@@ -12,15 +12,23 @@ Adressbereich: 300
 Commands:
 blacklist insert ip connections removetime  #lokal bannen
 blacklist ginsert ip connections removetime #global bannen
+blacklist remove ip                         #bann löschen
+blacklist gremove ip                        #bann global löschen
 blacklist show                              #bans anzeigen
 
 whitelist insert ip                         #lokal diese ip immer zulassen
 whitelist ginsert ip                        #global diese ip immer zulassen
+whitelist remove ip                         #IP lokal von der whitelist streichen
+whitelist gremove ip                        #IP global von der whitelist streichen
 whitelist show                              #whitelist anzeigen
 
 rangeban insert Name IP-Range               #Eine IP-Range lokal bannen
 rangeban ginsert Name IP-Range              #Eine IP-Range global bannen
+rangeban remove Name                        #Range lokal wieder zulassen
+rangeban gremove Name                       #Range global wieder zulassen
 rangeban show                               #alle rangebans anzeigen
+rangeban export filename                    #die Rangebanliste als Datei exportieren
+rangeban import filename                    #die Rangebanliste als Datei importieren
 
 status                                      #gibt die Kurzfassung der Blacklist aus
 
