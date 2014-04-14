@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# python3 com
 # encoding: iso-8859-1
 
 #
@@ -26,18 +26,18 @@ __date__ ="$17.09.2011 17:31:44$"
 
 if __name__ == "__main__":
     ##Startup
-    print "  Birdcage V0.7a Hive-Edition"
-    print ""
-    print "          ___(__)___"
-    print "         /          \     "
-    print "        |     ___    |  "
-    print "        |    ('v')   | "
-    print "        |   ((___))  |  "
-    print "        |--/-'---'---| "
-    print ""
-    print "(c) Booksize"
-    print "Do anythin what you want to do..."
-    print ""
+    print("  Birdcage V0.7a Hive-Edition")
+    print("")
+    print("          ___(__)___")
+    print("         /          \     ")
+    print("        |     ___    |  ")
+    print("        |    ('v')   | ")
+    print("        |   ((___))  |  ")
+    print("        |--/-'---'---| ")
+    print("")
+    print("(c) Booksize")
+    print("Do anythin what you want to do...")
+    print("")
 
 import SOCKS, CP, FILEIO
 

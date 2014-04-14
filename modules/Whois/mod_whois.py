@@ -1,5 +1,5 @@
 # encoding: iso-8859-1
-
+# python3 com
 #
 # (C) 20011-2014 by Booksize
 #
@@ -24,7 +24,7 @@
 import sys
 import socket
 import optparse
-import CP, time, threading, sys, os, commands
+import CP, time, threading, sys, os, subprocess
 
 #Base-Address
 #Please read the read.me in the root-dir
@@ -160,14 +160,14 @@ class NICClient(object) :
         if (options == None):
             options = {}
 
-        if ( (not options.has_key('whoishost') or options['whoishost'] == None)
-            and (not options.has_key('country') or options['country'] == None)):
+        if ( ('whoishost' not in options or options['whoishost'] == None)
+            and ('country' not in options or options['country'] == None)):
             self.use_qnichost = True
             options['whoishost'] = NICClient.NICHOST
             if ( not (flags & NICClient.WHOIS_QUICK)):
                 flags |= NICClient.WHOIS_RECURSE
 
-        if (options.has_key('country') and options['country'] != None):
+        if ('country' in options and options['country'] != None):
             result = self.whois(query_arg, options['country'] + NICClient.QNICHOST_TAIL, flags)
         elif (self.use_qnichost):
             nichost = self.choose_server(query_arg)
@@ -287,5 +287,5 @@ class CLI_Dict:
                 return "310 1 " + args.split(" ")[1]
 
         except IndexError:
-            print args
+            print(args)
             return
