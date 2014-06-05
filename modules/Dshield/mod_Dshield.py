@@ -23,8 +23,9 @@
 # BaseAddress
 import urllib2, CP, time, threading, sys, os, commands
 address = "302"
+firewall_flag = "6"
 m_version ="0.1"
-
+FIREWALL_ADDRESS = "300"
 
 class Master:
     CP #Pointer for the CP
@@ -71,5 +72,5 @@ class Master:
           if (len(item) == 0):
             return
           if (len(item.split("\n")[-1])<>0):
-            self.CP.command("300 1 " + item.split("\n")[-1] + " 0 " + str(int((time.time() + 86400))) + " 1", "NULL")
+            self.CP.command(FIREWALL_ADDRESS + " 1 " + item.split("\n")[-1] + " 0 " + str(int((time.time() + 86400))) + " " + firewall_flag + " DSHIELD_EXPORT", "NULL")
         return

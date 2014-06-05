@@ -21,6 +21,7 @@ import urllib2, CP, time, threading, sys, os, commands, re
 address = "0000" #NONE
 m_version ="0.1"
 LOCK = threading.Lock()
+firewall_flag = '5'
 
 class FileChecker:
     def __init__(self, CP, logfile):
@@ -34,20 +35,20 @@ class FileChecker:
         self.ignex      = []
         return
 
-    def insertFilter(self, regex, count, position, duration):
-        self.errreg.append([regex.upper(), position, count, duration])
+    def insertFilter(self, regex, count, position, duration, flag, name):
+        self.errreg.append([regex.upper(), position, count, duration, flag, name])
         return
 
     def insertIgnorex(self, ignore):
         self.ignex.append(ignore.upper())
         return
 
-    def checkip(self, ip, count, duration):
+    def checkip(self, ip, count, duration, flag, name):
         if (int(count) == 0):
             if (int(duration) == 0):
-                Master.CP.command("300 1 " + ip + " 0 0 0", "NULL")
+                Master.CP.command("300 1 " + ip + " 0 0 " + flag + " " + name , "NULL")
             else:
-                Master.CP.command("300 1 " + ip + " 0 " + str(int((time.time() + int(duration)))) + " 0", "NULL")
+                Master.CP.command("300 1 " + ip + " 0 " + str(int((time.time() + int(duration)))) + " " + flag + " " + name, "NULL")
             return
 
         for self.ip, self.count in self.marked_ip:
@@ -57,10 +58,10 @@ class FileChecker:
                     return
                 if (int(self.count) == int(count)):
                     if (int(self.duration) == 0):
-                        Master.CP.command("300 1 " + self.ip + " 0 0 0", "NULL")
+                        Master.CP.command("300 1 " + self.ip + " 0 0 " + flag + " " + name, "NULL")
                         self.marked_ip[self.marked_ip.index([self.ip, self.count])] = [self.ip, (self.count + 1)]
                     else:
-                        Master.CP.command("300 1 " + self.ip + " 0 " + str(int((time.time() + int(duration)))) + " 0", "NULL")
+                        Master.CP.command("300 1 " + self.ip + " 0 " + str(int((time.time() + int(duration)))) + " " + flag + " " + name, "NULL")
                         del self.marked_ip[self.marked_ip.index([self.ip, (self.count)])]
                 return
 
@@ -83,13 +84,13 @@ class FileChecker:
                 if self.ignorex in self.line:
                     break
             else:
-                for self.regex, self.position, self.count, self.duration in self.errreg:
+                for self.regex, self.position, self.count, self.duration, flag, name in self.errreg:
                     if self.regex in self.line:
                         if (Master.LogDebug):
                             self.CP.ToLog("Info", self.line)
                         try:
                             self.fip = re.findall( r'[0-9]+(?:\.[0-9]+){3}', self.line)[int(self.position)]
-                            self.checkip(self.fip, self.count, self.duration)
+                            self.checkip(self.fip, self.count, self.duration, flag, name)
                         except IndexError:
                             pass
 
@@ -98,7 +99,7 @@ class FileChecker:
         return
 
 class Master(threading.Thread):
-    check = True;
+    check = True
     CP #Pointer for the CP
     LogDebug = False
 
@@ -116,6 +117,7 @@ class Master(threading.Thread):
 
         self.fname = ""
         self.btime = 0
+        self.flag = 0
         self.count = 0
         self.IPPosition = 0
 
@@ -133,12 +135,14 @@ class Master(threading.Thread):
                     self.SetFilter (self.fname, self.line.strip().split('"')[1])
                 if (self.line.strip().find("Bantime") != -1):
                     self.btime = self.line.strip().replace(" ", "").split('=')[1]
+                if (self.line.strip().find("Flag") != -1):
+                    self.flag = self.line.strip().replace(" ", "").split('=')[1]
                 if (self.line.strip().find("IPPosition") != -1):
                     self.IPPosition = self.line.strip().replace(" ", "").split('=')[1]
                 if (self.line.strip().find("Count") != -1):
                     self.count = self.line.strip().replace(" ", "").split('=')[1]
                 if (self.line.strip().find("Regex =") != -1):
-                    self.AppendRule(self.fname, self.line.strip().split('"')[1], self.count, self.IPPosition, self.btime)
+                    self.AppendRule(self.fname, self.line.strip().split('"')[1], self.count, self.IPPosition, self.btime, self.flag)
                 if (self.line.strip().find("Ignorex =") != -1):
                     self.AppendIgnRule(self.fname, self.line.strip().split('"')[1])
         self.fobject.close()
@@ -152,11 +156,11 @@ class Master(threading.Thread):
         self.Filter.append([name, self.newC])
         return
 
-    def AppendRule(self, name, regex, count, position, duration):
+    def AppendRule(self, name, regex, count, position, duration, flag):
         #print 'Name: %s \nRegEx: "%s" \nCount: %s \nPos: %s \nDuration: %s\n' % (name, regex, count, position, duration)
         for self.Name, self.Class in self.Filter:
             if (self.Name == name):
-                self.Class.insertFilter(regex, count, position, duration)
+                self.Class.insertFilter(regex, count, position, duration, flag, name)
         return
 
     def AppendIgnRule(self, name, ignorex):

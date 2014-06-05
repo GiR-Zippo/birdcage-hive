@@ -24,7 +24,7 @@
 import urllib2, cookielib, CP, time, threading, sys, os, commands
 address = "301"
 m_version ="0.1"
-
+firewall_flag = "6"
 
 class Master:
     CP #Pointer for the CP
@@ -76,5 +76,5 @@ class Master:
         for self.item in self.instring:
             if self.item.strip()[0] != ";":
                 #print self.item.split(";")[0].strip()
-                self.CP.command("300 1 " + self.item.split(";")[0].strip() + " 0 " + str(int((time.time() + 86400))) + " 1", "NULL")
+                self.CP.command("300 1 " + self.item.split(";")[0].strip() + " 0 " + str(int((time.time() + 86400))) + " " + firewall_flag + " SPAMHAUS-EXPORT", "NULL")
         return
