@@ -177,7 +177,6 @@ class DNS:
             self.Master.CP.command(out, "NULL")
         return
 
-    #Damit gehts vom Modul direkt zu Hetzner
     def SetFile(self, handler, name, ID, args):
         self.domain   = name
         self.domainID = ID
