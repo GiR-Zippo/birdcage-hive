@@ -1,0 +1,11 @@
+Das ist ein einfaches Modul für den (hive) internen Gebrauch.
+Prizipiell steuert es die Amazon AWS, womit man EC2 Instanzen anfahren aber auch abschalten kann.
+Allein ist das Modul vorerst recht witzlos, wird aber in Kombination mit anderen Modulen
+recht interessant.
+
+
+Adressbereich: 402
+SUB 10(CreateInstanceFromParamString): Image, Type, Rule, Key, Name 
+SUB 12(StopInstanceByName):            Name 
+SUB 13(TerminateInstanceByName):       Name
+SUB 20(GetIPForInstance):              Name, RET_ADDR, RET_SUB, ARGS, &IP(RET_IP)

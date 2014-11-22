@@ -1,7 +1,7 @@
 # encoding: iso-8859-1
 
 #
-# Copyright (C) 20011-2013 by Booksize
+# Copyright (C) 20011-2014 by Booksize
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -21,66 +21,19 @@ import time
 # encoding: iso-8859-1
 ## The CommandProcessor
 
-import SOCKS, FILEIO, LOG
-import sys, os, commands, threading
+import threading
 import signal
-from collections import deque
 
+import FILEIO
+import LOG
+import NET.API
+from SYSTEM.CONFIG import Config
+from SYSTEM.EVENTS import Events
+from SYSTEM.FIFO import Fifo
+from SYSTEM.INTERLINK import Interlink
+from SYSTEM.MODULE import MODULESYSTEM
+from WEB.WEBSERVER import WebServer
 LOCK = threading.Lock()
-
-#################################################
-####                EVENTS                   ####
-#################################################
-class Events(threading.Thread):
-    def __init__(self):
-        self.container = []
-        self.check = True
-        threading.Thread.__init__(self)
-        return
-
-    def Insert(self, eTime, eClass):
-        self.container.append([eTime, eClass])
-        return
-
-    def Execute(self):
-        for self.eTime, self.eClass in self.container:
-            if (float(self.eTime) <= float(time.time())):
-                self.eClass.Event()
-                del self.container[self.container.index([self.eTime, self.eClass])]
-
-    def run(self):
-        while self.check:
-            #print self.container
-            self.Execute()
-            time.sleep(0.5)
-        return
-
-    def stop(self):
-        self.check = False
-        return True
-
-#################################################
-####    FIFO-Buffer for incomming commands   ####
-#################################################
-class Fifo:
-    def __init__(self):
-        self.first_a= deque()
-        self.first_b= deque()
-
-    def append(self,data,handler):
-        self.first_a.append(data)
-        self.first_b.append(handler)
-
-    def pop(self):
-        try:
-            return self.first_a.popleft(), self.first_b.popleft()
-        except (IndexError):
-            pass
-
-    def hascontent(self):
-        if (len(self.first_a) > 0):
-            return True
-        return False
 
 #################################################
 ####             ControlProcessor            ####
@@ -94,10 +47,21 @@ class CP(object):
         self.sLog.outString("terminating...")
         self.command("TP",self) 
         return
-    def __init__(self):
-        self.buffer = Fifo()
-        self.configfile= "./configs/bird.conf"
 
+    def __init__(self):
+        #Init für die helfenden Elfen
+        self.m_buffer = Fifo()
+        self.m_InterInk = Interlink()
+        self.m_Events = Events()
+        self.m_SockAPI = NET.API.SocketApi(self)
+        self.m_Modules = MODULESYSTEM(self)
+
+        #self.m_WebServer = WebServer(self)
+
+        #config laden
+        self.configfile= "./CONFIGS/bird.conf"
+
+        #signalhandler einbauen
         signal.signal(signal.SIGINT, self.signal_handler)
 
         #LogSystem braucht die Config sofort
@@ -105,90 +69,47 @@ class CP(object):
         self.sLog = LOG.sLog()
         self.sLog.config(self.m_args,self)
 
-        #Installed Mods
-        # 0 = Root of Module 
-        # 1 = Module().Master()
-        # 2 = Module().CLI_Dict()
-        # 3 = Name
-        self.installed_mods = []
-
-        #EventSystem
-        self.m_Events = Events()
-
+        #Der Name unserer Drone
         self.Drone_Name = ""
 
-        self.InitMods();
-        self.ReadConfig();
-        self.StartUP();
+        #Module initialisieren
+        self.InitMods()
+        self.ReadConfig()
+        self.StartUP()
 
     #Load, Register and Start mods
     def InitMods(self):
         #MainRoutines
-        self.m_Sock = SOCKS
-        SOCKS.CP = self
-        self.m_Sock_listen = self.m_Sock.Listener()
-        self.m_Sock_listen.start()
-        self.m_Sock.debug = False
-        self.m_Sock_out = self.m_Sock_listen.SessionMgr
+        self.m_SockAPI.start()
         self.m_Events.start()
 
+        self.Drone_Name = Config(self.configfile).GetItem("droneid")
         #UserMods
-        self.m_args = FILEIO.FileIO().ReadLine(self.configfile)
-
-        self.temp = self.m_args.split("\n")
-        for str in self.temp:
-            out = str.split("=")
-            i=0
-            for item in out:
-                i=i+1
-                if item.strip() == "droneid":
-                    self.Drone_Name = out[i].strip()
-
-                if item.strip() == "modules":
-                    t_ip = out[i].split(",")
-                    for item in t_ip:
-                        self.sLog.outString("Loading Modules: " + item.strip())
-                        self.handler = __import__(item.strip())
-
-                        #Woerterbuch suchen...
-                        try:
-                            self.mod_cli = self.handler.CLI_Dict()
-                        except AttributeError:
-                            self.mod_cli = "None"
-
-                        self.installed_mods.append([self.handler,self.handler.Master(self), self.mod_cli, item.strip()])
-                        self.sLog.outString("Using Module:" + item.strip())
+        self.m_Modules.Initialize()
 
 
     ## Read the config
     def ReadConfig(self):
         self.m_args = FILEIO.FileIO().ReadLine(self.configfile)
-        self.m_Sock_listen.config(self.m_args,self)
+        self.m_SockAPI.config(self.m_args)
 
         ##send config to our mods
         #for item in self.installed_mods_master:
-        for item in self.installed_mods:
-            item[1].config(self.m_args, self)
+        self.m_Modules.ReadConfig(self.m_args)
 
     #Here we define our Startup-Setup
     def StartUP(self):
-        self.m_Sock_out.writeline("002 2 " + self.Drone_Name)
-        self.m_Sock_out.writeline("INIT")
-
-        for item in self.installed_mods:
-            item[1].start();
-
+        self.m_SockAPI.writeline("002 2 " + self.Drone_Name)
+        self.m_SockAPI.writeline("INIT")
+        self.m_Modules.StartUp()
+        #self.m_WebServer.start()
     ## Threads and Mods stop here
     def StopMods(self):
         #StopEvents
         self.m_Events.stop()
-        #UserMods
-        for item in self.installed_mods:
-            if item[1].stop() == True:
-                self.sLog.outString("Stopped: " + item[3])
-                continue
-
-        self.m_Sock_listen.stop()
+        self.m_Modules.TerminateALLModules()
+        #self.m_WebServer.stop()
+        self.m_SockAPI.stop()
         self.sLog.outString("Bye.")
 
     #################################################
@@ -204,10 +125,10 @@ class CP(object):
 
     ## Alter Drones
     def ToSocket(self, args):
-        self.m_Sock_out.writeline(args)
+        self.m_SockAPI.writeline(args)
 
     def ToDrone(self, name, args):
-        self.m_Sock_out.writeTo(name, args)
+        self.m_SockAPI.writeTo(name, args)
 
     def ToLog(self, Logfilter, args):
         if (Logfilter=="Info"):
@@ -220,7 +141,7 @@ class CP(object):
 
     #Put incomming cmds on buffer
     def command(self, args,handler):
-        self.buffer.append(args,handler)
+        self.m_buffer.append(args,handler)
 
         #if LOCK.acquire(False): # Non-blocking -- return whether we got it
         #    LOCK.release()
@@ -228,9 +149,9 @@ class CP(object):
         #    self.sLog.outCritical("Couldn't get the lock. Maybe next time")
 
     def refresh(self):
-        while (self.buffer.hascontent() == True):
+        while (self.m_buffer.hascontent()):
             try:
-                args, handler = self.buffer.pop()
+                args, handler = self.m_buffer.pop()
             except TypeError:
                 continue
 
@@ -246,13 +167,13 @@ class CP(object):
             #If we get a init from network
             try:
                 if args.split(" ")[0] == "INIT":
-                    for item in self.installed_mods:
+                    for item in self.m_Modules.m_Installed_Mods:
                         item[1].initfromdrone(int(args.split(" ")[1]), handler)
                     return
             except IndexError:
                 if args == "INIT":
                     self.ToSocket("002 2 " + self.Drone_Name) #Send our Name
-                    for item in self.installed_mods:
+                    for item in self.m_Modules.m_Installed_Mods:
                         item[1].initfromdrone(0, handler)
                     return
 
@@ -262,7 +183,7 @@ class CP(object):
                     self.Internal_Commands(args, handler)
 
                 #module commandhandler
-                for item in self.installed_mods:
+                for item in self.m_Modules.m_Installed_Mods:
                     item[1].command(args,handler)
             except ValueError:
                 None
@@ -276,19 +197,13 @@ class CP(object):
                 #self.sLog.outCritical("Couldn't get the lock. Maybe next time")
 
     def GetInstalledMods(self):
-        return self.installed_mods
+        return self.m_Modules.m_Installed_Mods
 
     def GetModulebyName(self, name):
-        for self.out in self.installed_mods:
-            if self.out[3] == name:
-                return self.out
-        return None
+        return self.m_Modules.GetModulebyName()
 
     def GetModulebyMaster(self, master):
-        for self.out in self.installed_mods:
-            if (self.out[1] == master):
-                return self.out
-        return None
+        return self.m_Modules.GetModulebyMaster()
 
     def GetDroneName(self):
         return self.Drone_Name
@@ -298,19 +213,13 @@ class CP(object):
     ##############################################
 
     def Internal_Commands(self,args,handler):
-        #List all Mods we are using
+
         if (args.split(" ")[1] == "1"):
-            for self.out in self.installed_mods:
-                 handler.writeline(self.out[3])
+            self.m_Modules.ListAllModules(handler)
 
         #Stop module X
         if (args.split(" ")[1] == "2"):
-            self.i=0
-            for self.out in self.installed_mods:
-                if (self.out[3] == args.split(" ")[2]):
-                    if self.out[1].stop():
-                        self.sLog.outString("Module " + self.out[3].strip() + " stopped.")
-                self.i=self.i+1
+            self.m_Modules.TerminateModule(args.split(" ")[2])
 
         #Reload and Start Module X
         if (args.split(" ")[1] == "3"):
@@ -320,30 +229,30 @@ class CP(object):
 
         #Push mod X to da Hive
         if (args.split(" ")[1]=="4"):
-            self.out = self.GetModulebyName(args.split(" ")[2])
-            self.SendModule(self.out)
+            out = self.GetModulebyName(args.split(" ")[2])
+            self.SendModule(out)
             return
 
         #recive Module from Hive
         if (args.split(" ")[1]=="5"):
-            self.out = self.GetModulebyName(args.split(" ")[2])
+            out = self.GetModulebyName(args.split(" ")[2])
 
-            if self.out == None:
+            if out:
                 return
 
-            if (float(args.split(" ")[3]) > float(self.out[0].m_version)):
-                self.all = len(args.split(" ")[0]) + len(args.split(" ")[1]) + len(args.split(" ")[2]) + len(args.split(" ")[3]) + 4
-                self.RecModule(self.out, args[self.all:])
+            if (float(args.split(" ")[3]) > float(out[0].m_version)):
+                all = len(args.split(" ")[0]) + len(args.split(" ")[1]) + len(args.split(" ")[2]) + len(args.split(" ")[3]) + 4
+                self.RecModule(out, args[all:])
 
         #Push all mods to da Hive
         if (args.split(" ")[1]=="6"):
-            for self.out in self.installed_mods:
-                self.SendModule(self.out)
+            for out in self.m_Modules.m_Installed_Mods:
+                self.SendModule(out)
 
         #List all Authed and Connected Drones
         if (args.split(" ")[1]=="7"):
-            for self.out in self.m_Sock_listen.SessionMgr.SessionList:
-                handler.writeline(self.out.Name)
+            for out in self.m_SockAPI.GetSessionList():
+                handler.writeline(out.Name)
 
         #SendFile to Drone
         #Drone, Source, Target
@@ -353,73 +262,38 @@ class CP(object):
         #rec file
         #Flag, TargetName, Data
         if (args.split(" ")[1]=="9"):
-            self.length = len(args.split(" ")[0]) + len(args.split(" ")[1]) + len(args.split(" ")[2]) + len(args.split(" ")[3]) + 4
+            length = len(args.split(" ")[0]) + len(args.split(" ")[1]) + len(args.split(" ")[2]) + len(args.split(" ")[3]) + 4
             if (int(args.split(" ")[2]) == 0):
-                FILEIO.FileIO().WriteToFileSync(args.split(" ")[3],args[self.length:],"wb")
+                FILEIO.FileIO().WriteToFileSync(args.split(" ")[3],args[length:],"wb")
             elif(int(args.split(" ")[2]) == 1):
-                FILEIO.FileIO().WriteToFileSync(args.split(" ")[3],args[self.length:],"ab")
+                FILEIO.FileIO().WriteToFileSync(args.split(" ")[3],args[length:],"ab")
         #SubAddresse 10 liegt im Socket
 
     def ReloadMod(self,args):
-        try:
-            self.accessor = args[1]
-        except TypeError:
-            self.sLog.outCritical("Module not found.")
-            return
-
-        if self.accessor.stop():
-            self.sLog.outString("Module " + args[3].strip() + " stopped.")
-
-        self.modname = args[3].strip()
-        self.index = self.installed_mods.index(args)
-        try:
-            self.accessor.join()
-            self.handler = reload(self.installed_mods[self.index][0])
-        except AttributeError, RuntimeError:
-            self.handler = reload(self.installed_mods[self.index][0])
-
-        del self.installed_mods[self.index]
-
-        #Woerterbuch suchen...
-        try:
-            self.mod_cli = self.handler.CLI_Dict()
-        except AttributeError:
-            self.mod_cli = "None"
-
-        self.m_args = FILEIO.FileIO().ReadLine("./configs/bird.conf")
-        self.installed_mods.append([self.handler,self.handler.Master(self), self.mod_cli, self.modname])
-
-        self.accessor = self.GetModulebyName(self.modname)
-        self.accessor[1].config(self.m_args, self)
-        self.accessor[1].start();
-        self.sLog.outString("Module reloaded: " + self.installed_mods[self.installed_mods.index(self.accessor)][3])
+        self.m_Modules.ReloadModule(args)
         return
 
     def SendModule(self,args):
-        self.name = str(args[3])
-        self.rev = args[0].m_version
-        self.str = FILEIO.FileIO().ReadLine(self.name + ".py")
-        self.ToSocket("001 5 " + self.name + " "  + str(self.rev) + " " + self.str)
+        name = str(args[3])
+        rev = args[0].m_version
+        data = FILEIO.FileIO().ReadLine("./MODS_AVAILABLE/" + name + "/" + name + ".py")
+        self.ToSocket("001 5 " + name + " "  + str(rev) + " " + data)
 
     def RecModule(self, entry, args):
-        self.name = str(entry[3]) + ".py"
+        name = "./MODS_AVAILABLE/" + str(entry[3]) + "/" + str(entry[3]) + ".py"
         try:
-            FILEIO.FileIO().WriteToFileAsync(self.name, args, 'w')
-            self.ReloadMod(entry)
-            self.sLog.outString("Received newer Version of Module: " + self.name)
+            FILEIO.FileIO().WriteToFileAsync(name, args, 'w')
+            self.ReloadModule(entry)
+            self.sLog.outString("Received newer Version of Module: " + name)
         except IOError:
             pass
 
     def GetDictionary(self,module, args):
-        self.i=0
-        for self.out in self.installed_mods:
-            if (self.out[3] == module):
+        for out in self.m_Modules.m_Installed_Mods:
+            if (out[3] == module):
                 try:
-                    self.dict = self.out[2].get(args);
-                    if (self.dict):
-                        return self.dict
+                    dict = out[2].get(args);
+                    if (dict):
+                        return dict
                 except AttributeError:
                     self.sLog.outString("This Module has no Commands!", False)
-
-            self.i=self.i+1
-

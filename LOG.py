@@ -1,5 +1,5 @@
 # encoding: iso-8859-1
-# python3 com
+
 #
 # Copyright (C) 20011-2013 by Booksize
 #
@@ -17,7 +17,7 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import sys, os, subprocess, threading, time
+import sys, os, commands, threading, time
 
 class sLog: #(object):
     _instance = None
@@ -54,21 +54,21 @@ class sLog: #(object):
 
     def outString(self, args, toFile = True):
             self.WriteLine(" [INFO] ", args)
-            print(args)
+            print args
             return
 
     def outCritical(self, args, toFile = True):
         if (toFile == True):
             self.WriteLine(" [CRITICAL] ", args)
         if self.console_critical == True:
-            print(args)
+            print args
         return
 
     def outDebug(self, args, toFile = True):
         if (toFile == True):
             self.WriteLine(" [DEBUG] ", args)
         if self.console_debug == True:
-            print(args)
+            print args
         return
 
     def WriteLine(self,ct, args):

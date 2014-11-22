@@ -1,3 +1,5 @@
-logs/*
-*~
+/logs
+.idea
+*.log
+.logs
 *.pyc

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # encoding: iso-8859-1
 
 #
@@ -19,32 +17,27 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import time
+#################################################
+####    FIFO-Buffer for incomming commands   ####
+#################################################
+from collections import deque
 
-__author__="dasumba"
-__date__ ="$17.09.2011 17:31:44$"
+class Fifo:
+    def __init__(self):
+        self.first_a= deque()
+        self.first_b= deque()
 
-if __name__ == "__main__":
-    ##Startup
-    print "  Birdcage V0.7b Hive-Edition"
-    print ""
-    print "          ___(__)___"
-    print "         /          \     "
-    print "        |     ___    |  "
-    print "        |    ('v')   | "
-    print "        |   ((___))  |  "
-    print "        |--/-'---'---| "
-    print ""
-    print "(c) Booksize"
-    print "Do anythin what you want to do..."
-    print ""
+    def append(self,data,handler):
+        self.first_a.append(data)
+        self.first_b.append(handler)
 
-import CP
+    def pop(self):
+        try:
+            return self.first_a.popleft(), self.first_b.popleft()
+        except (IndexError):
+            pass
 
-m_CP = CP.CP()
-m_Runnable = True
-
-while (m_Runnable == True):
-    time.sleep(0.003) #Take a short nap :)
-    if (m_CP.refresh() ==False):
-        m_Runnable = False
+    def hascontent(self):
+        if (len(self.first_a) > 0):
+            return True
+        return False

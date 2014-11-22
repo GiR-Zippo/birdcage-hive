@@ -1,0 +1,27 @@
+Das Modul arbeitet ähnlich dem gewohnten Fail2Ban.
+
+Man definiert einfach in der Config den gewünschten Filter,
+gibt dem Filter die Regexes und Ignores mit und lässt das Modul
+anschließend auf die gewünschte Datei los.
+
+Der Intervall beträgt bei dem Modul 2 Sekunden.
+Man kann gerne mehr oder weniger Sekunden eingeben, sollte es aber
+vorerst noch im Modul selbst machen, weil ein entsprechender Eintrag
+in der Config noch nicht vorgesehen ist.
+
+Außerdem sollte man beachten dass Ingore vor Regex geht.
+Soll heißen, ist Ingorex = "pop3-login: Aborted login (auth failed" so definiert,
+wird Regex = "pop3-login: Aborted login (auth failed" nicht mehr verarbeitet.
+Also bitte so weit es geht präzisieren, was man Ignorieren will um nicht seine
+Regex außer Kraft zu setzen.
+
+
+Die Installation ist denkbar einfach:
+- Symlink vom Modul mod_Firewall_F2B in MODS_ENABLED packen
+- Die Modul Config in das ConfigVerzeichnis vom Hive
+- Konfigurieren und Hive starten
+
+Abhängigkeiten:
+- mod_Firewall
+
+Adressbereich: Keiner

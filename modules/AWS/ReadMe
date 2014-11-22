@@ -1,7 +1,0 @@
-Das ist ein einfaches Modul für den (hive) internen Gebrauch.
-Prizipiell steuert es die Amazon AWS, womit man EC2 Instanzen anfahren aber auch abschalten kann.
-Allein ist das Modul vorerst recht witzlos, wird aber in Kombination mit anderen Modulen
-recht interessant.
-
-
-Adressbereich: 402
