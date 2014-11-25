@@ -25,7 +25,7 @@ import time
 from collections import deque
 
 INPORT = 5022
-OUTPORT = 5023
+OUTPORT = 5022
 DIFF = 0.005
 
 #################################################
@@ -57,7 +57,6 @@ class SockMain:
         if r or w:
             try:
                 #build new packet
-                print "read"
                 pck = PACKET.Packet()
                 #set header to calc size
                 pck.SetHeader(self.sock.recv(4))
@@ -72,7 +71,6 @@ class SockMain:
         return True
 
     def SendPacket(self, data):
-        print "SEND"
         self.sock.send(data.GetPacketWithHeader())
         return
 

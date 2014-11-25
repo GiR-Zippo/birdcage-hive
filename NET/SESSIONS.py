@@ -107,7 +107,6 @@ class Session:
         pck = PACKET.Packet()
         pck.AppendString(data)
         pck.Encrypt(self.Master.Digest, self.outpbk)
-        print "OUT: " + data
 
         if (self.EnOutAdress):
             if not (data.split(" ")[0].strip() ==  "INIT"):
@@ -124,7 +123,6 @@ class Session:
         pck.Decrypt(self.digest, self.inpbk)
         #get decrypted content
         inc = pck.GetData()
-        print "IN: " + inc
 
         #Check if this drone has restrictions
         if (self.EnInAdress):
@@ -145,7 +143,6 @@ class Session:
                     self.online = True
                 return
         self.InPacketList.append(pck)
-        print self.Social
         return
 
 class SessionMgr(threading.Thread):
