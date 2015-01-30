@@ -1,7 +1,7 @@
 # encoding: iso-8859-1
 
 #
-# Copyright (C) 20011-2013 by Booksize
+# Copyright (C) 20011-2014 by Booksize
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -22,49 +22,49 @@ class Config:
         try:
             self.file = open(configFile, "r")
         except:
-            self.str = ''
+            self.content = ''
             return
-        self.str = self.file.read()
+        self.content = self.file.read()
         self.file.close()
         return
 
     def CheckFile(self):
-        if (len(self.str) > 0):
+        if len(self.content) > 0:
             return True
         return False
 
     def GetItem(self, args):
-        temp = self.str.split("\n")
-        for self.r_item in temp:
+        _lines = self.content.split("\n")
+        for _line in _lines:
             try:
-                if self.r_item[0] == "#":
+                if _line[0] == "#":
                     continue
             except IndexError:
                     continue
 
-            self.out = self.r_item.split("=")
+            _items = _line.split("=")
             idx = 0
-            for item in self.out:
+            for _item in _items:
                 idx = idx +1
-                if item.strip() == args:
-                    return self.out[idx].strip()
+                if _item.strip() == args:
+                    return _items[idx].strip()
         return ''
 
     def GetItemList(self, args):
-        list = []
-        temp = self.str.split("\n")
-        for self.r_item in temp:
+        _list = []
+        _lines = self.content.split("\n")
+        for _line in _lines:
             try:
-                if self.r_item[0] == "#":
+                if _line[0] == "#":
                     continue
             except IndexError:
                     continue
 
-            self.out = self.r_item.split("=")
-            if (self.out[0].strip() == args):
+            _out = _line.split("=")
+            if _out[0].strip() == args:
                 try:
-                    for litem in self.out[1].split(','):
-                        list.append(litem.strip())
+                    for _item in _out[1].split(','):
+                        _list.append(_item.strip())
                 except:
-                    list.append(self.out[1].strip())
-        return list
+                    _list.append(_out[1].strip())
+        return _list

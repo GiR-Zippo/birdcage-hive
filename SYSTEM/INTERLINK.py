@@ -21,18 +21,24 @@
 ####         Interlink for modules           ####
 #################################################
 
+class InterStruct:
+    def __init__(self, src, dest, module):
+        self.src = src
+        self.dest = dest
+        self.module = module
 
 class Interlink:
     def __init__(self):
         self.modulesInterlink = []
         return
 
-    def AddModule(self, module):
+    def AddModule(self, src, dest, module):
+        data = InterStruct(src, dest, module)
+        self.modulesInterlink.append(data)
         return
 
-    def CheckModule(self, address, module):
-        if [address,module] in self.modulesInterlink:
-            return True
-        return False
-        #self.modulesInterlink.append(module)
-        return
+    def CheckModule(self, addr):
+        for i in self.modulesInterlink:
+            if (i.dest == addr):
+                return i.module
+        return None

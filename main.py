@@ -26,7 +26,7 @@ __date__ ="$17.09.2011 17:31:44$"
 
 if __name__ == "__main__":
     ##Startup
-    print "  Birdcage V0.7b Hive-Edition"
+    print "  Birdcage V0.7d Hive-Edition"
     print ""
     print "          ___(__)___"
     print "         /          \     "

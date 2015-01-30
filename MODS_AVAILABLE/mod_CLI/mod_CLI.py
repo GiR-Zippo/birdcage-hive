@@ -18,13 +18,18 @@
 #
 
 import CP
+# Our Console
+
+import commands
+import os
 import sys
 import threading
+import time
 
 ## define Checking-Thread
 class Master(threading.Thread):
-    check = True;
-    interval = 1;
+    check = True
+    interval = 1
     CP #Pointer for the CP
 
     def __init__(self,CP):
@@ -41,6 +46,9 @@ class Master(threading.Thread):
         self.dir = ""
 
         return
+
+    def GetAddress(self):
+        return 0
 
     ##If any drones sends an init, this routine would be called
     def initfromdrone(self, args, handler):
@@ -104,7 +112,7 @@ class Master(threading.Thread):
         elif (args[0] == "/"):
             self.CP.command("320 3 " + args + " " + args, self)
         elif (args[0] == "." and args[1] == "/"):
-            self.CP.command("320 3 " + args + " " + self.dir + args[2:], self)
+            self.CP.command("320 3 " + args + " " + self.dir + "/" + args[2:], self)
             return True
         #termination
         elif (args.split(" ")[0] == "kill"):
@@ -117,11 +125,11 @@ class Master(threading.Thread):
         if (self.omv[0] == "list"):
             try:
                 if (self.omv[1] == "modules"):
-                    self.out = "001 1";
+                    self.out = "001 1"
                     self.CP.command(self.out,self)
                     return True
                 elif (self.omv[1] == "drones"):
-                    self.out = "001 7";
+                    self.out = "001 7"
                     self.CP.command(self.out,self)
                     return True
             except IndexError:
@@ -131,15 +139,15 @@ class Master(threading.Thread):
         if (self.omv[0].strip() == "module"):
             self.out = ""
             try:
-                if (self.omv[1].strip() == "stop"):
-                    self.out = "001 2 " + self.omv[2];
-                elif (self.omv[1].strip() == "start"):
-                    self.out = "001 3 " + self.omv[2] ;
-                elif (self.omv[1].strip() == "export"):
-                    self.out = "001 4 " + self.omv[2];
-                elif (self.omv[1].strip() == "export-all"):
+                if self.omv[1].strip() == "stop":
+                    self.out = "001 2 " + self.omv[2]
+                elif self.omv[1].strip() == "start":
+                    self.out = "001 3 " + self.omv[2]
+                elif self.omv[1].strip() == "export":
+                    self.out = "001 4 " + self.omv[2]
+                elif self.omv[1].strip() == "export-all":
                     self.out = "001 6"
-                self.CP.command(self.out,self)
+                self.CP.command(self.out, self)
                 return True
             except IndexError:
                 self.writeline("Ya have to type in a modulename")

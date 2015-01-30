@@ -18,26 +18,27 @@
 #
 
 #################################################
-####    FIFO-Buffer for incomming commands   ####
+####            Simple FIFO-Buffer           ####
 #################################################
 from collections import deque
 
+
 class Fifo:
     def __init__(self):
-        self.first_a= deque()
-        self.first_b= deque()
+        self.first_a = deque()
+        self.first_b = deque()
 
-    def append(self,data,handler):
+    def append(self, data, handler):
         self.first_a.append(data)
         self.first_b.append(handler)
 
     def pop(self):
         try:
             return self.first_a.popleft(), self.first_b.popleft()
-        except (IndexError):
+        except IndexError:
             pass
 
     def hascontent(self):
-        if (len(self.first_a) > 0):
+        if len(self.first_a) > 0:
             return True
         return False

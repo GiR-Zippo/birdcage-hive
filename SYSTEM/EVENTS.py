@@ -20,7 +20,9 @@
 #################################################
 ####                EVENTS                   ####
 #################################################
-import threading, time
+import threading
+import time
+
 
 class Events(threading.Thread):
     def __init__(self):

@@ -17,8 +17,10 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import sys, os
+import sys
+import os
 import FILEIO
+
 
 class MODULESYSTEM:
     def __init__(self, master):
@@ -29,6 +31,7 @@ class MODULESYSTEM:
         # 1 = Module().Master()
         # 2 = Module().CLI_Dict()
         # 3 = Name
+        # 4 = Module().WEB()
         self.m_Installed_Mods = []
         return
 
@@ -48,96 +51,111 @@ class MODULESYSTEM:
                 try:
                     mod_cli = handler.CLI_Dict()
                 except AttributeError:
-                    mod_cli = "None"
+                    mod_cli = None
 
-                self.m_Installed_Mods.append([handler, handler.Master(self.m_Master), mod_cli, _file])
+                #WebDaten suchen
+                try:
+                    mod_web = handler.WEB()
+                except AttributeError:
+                    mod_web = None
+
+                print _file
+                self.m_Installed_Mods.append([handler, handler.Master(self.m_Master), mod_cli, _file, mod_web])
                 self.m_Master.sLog.outString("Using Module:" + _file)
         return
 
     def ReadConfig(self, args):
-        for item in self.m_Installed_Mods:
-            item[1].config(args, self.m_Master)
+        for mHandler, mMaster, mCLI, mName, mWEB in self.m_Installed_Mods:
+            mMaster.config(args, self.m_Master)
         return
 
     def StartUp(self):
-        for item in self.m_Installed_Mods:
-            item[1].start()
+        for mHandler, mMaster, mCLI, mName, mWEB in self.m_Installed_Mods:
+            mMaster.start()
         return
 
     def TerminateModule(self, module):
-        for mHandler, mMaster, mCLI, mName in self.m_Installed_Mods:
-            if (mName == module):
+        for mHandler, mMaster, mCLI, mName, mWEB in self.m_Installed_Mods:
+            if mName == module:
                 if mMaster.stop():
-                    self.m_Master.sLog.outString("Module " + self.out[3].strip() + " stopped.")
+                    self.m_Master.sLog.outString("Module " + mName + " stopped.")
                     return
         return
 
     def TerminateALLModules(self):
-        for item in self.m_Installed_Mods:
-            if item[1].stop():
-                self.m_Master.sLog.outString("Stopped: " + item[3])
+        for mHandler, mMaster, mCLI, mName, mWEB in self.m_Installed_Mods:
+            if mMaster.stop():
+                self.m_Master.sLog.outString("Stopped: " + mName)
                 continue
         return
 
-    def ReloadModule(self,args):
-        accessor = None
-        handler = None
-        mod_cli = None
+    def ReloadModule(self, args):
+        _accessor = None
+        _handler = None
+        _mod_cli = None
         try:
-            accessor = args[1]
+            _accessor = args[1]
         except TypeError:
             self.m_Master.sLog.outCritical("Module not found.")
             return
 
-        if accessor.stop():
+        if _accessor.stop():
             self.m_Master.sLog.outString("Module " + args[3].strip() + " stopped.")
 
-        modname = args[3].strip()
+        _modname = args[3].strip()
         index = self.m_Installed_Mods.index(args)
         try:
-            accessor.join()
-            handler = reload(self.m_Installed_Mods[index][0])
+            _accessor.join()
+            _handler = reload(self.m_Installed_Mods[index][0])
         except AttributeError, RuntimeError:
-            handler = reload(self.m_Installed_Mods[index][0])
+            _handler = reload(self.m_Installed_Mods[index][0])
 
         del self.m_Installed_Mods[index]
 
         #Woerterbuch suchen...
         try:
-            mod_cli = handler.CLI_Dict()
+            _mod_cli = _handler.CLI_Dict()
         except AttributeError:
-            mod_cli = "None"
+            _mod_cli = "None"
 
-        m_args = FILEIO.FileIO().ReadLine("./CONFIGS/bird.conf")
-        self.m_Installed_Mods.append([handler,handler.Master(self.m_Master), mod_cli, modname])
+        _args = FILEIO.FileIO().ReadLine("./CONFIGS/bird.conf")
+        self.m_Installed_Mods.append([_handler, _handler.Master(self.m_Master), _mod_cli, _modname])
 
-        accessor = self.GetModulebyName(modname)
-        accessor[1].config(m_args, self.m_Master)
-        accessor[1].start()
-        self.m_Master.sLog.outString("Module reloaded: " + self.m_Installed_Mods[self.m_Installed_Mods.index(accessor)][3])
+        _accessor = self.GetModulebyName(_modname)
+        _accessor[1].config(_args, self.m_Master)
+        _accessor[1].start()
+        self.m_Master.sLog.outString("Module reloaded: " + self.m_Installed_Mods[self.m_Installed_Mods.index(_accessor)][3])
         return
 
     #Commands
 
     #List all Mods we are using
     def ListAllModules(self, handler):
-        for mHandler, mMaster, mCLI, mName in self.m_Installed_Mods:
+        for mHandler, mMaster, mCLI, mName, mWEB in self.m_Installed_Mods:
             handler.writeline(mName)
         return
-
 
     #Helfer
     def GetInstalledMods(self):
         return self.m_Installed_Mods
 
     def GetModulebyName(self, name):
-        for self.out in self.m_Installed_Mods:
-            if self.out[3] == name:
-                return self.out
+        for mHandler, mMaster, mCLI, mName, mWEB in self.m_Installed_Mods:
+            if mName == name:
+                return [mHandler, mMaster, mCLI, mName]
         return None
 
     def GetModulebyMaster(self, master):
-        for mHandler, mMaster, mCLI, mName in self.m_Installed_Mods:
-            if (mMaster == master):
-                return [mHandler, mMaster, mCLI, mName]
+        for mHandler, mMaster, mCLI, mName, mWEB in self.m_Installed_Mods:
+            if mMaster == master:
+                return [mHandler, mMaster, mCLI, mName, mWEB]
+        return None
+
+    def GetModulebyAddress(self, address):
+        for mHandler, mMaster, mCLI, mName, mWEB in self.m_Installed_Mods:
+            try:
+                if mMaster.GetAddress() == address:
+                    return [mHandler, mMaster, mCLI, mName, mWEB]
+            except:
+                pass
         return None

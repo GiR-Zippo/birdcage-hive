@@ -109,7 +109,6 @@ class SocketMgr(threading.Thread):
         is_error = []
         r, w, e = select.select(is_readable, is_writable, is_error, DIFF)
         if r:
-            0
             channel, info = self.listener.sock.accept()
             #print "connection from", info
             try:

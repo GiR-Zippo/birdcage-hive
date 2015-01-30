@@ -50,21 +50,21 @@ class SocketApi(threading.Thread):
         self.cinadress = ""
         self.coutadress = ""
 
-        self.temp = args.split("\n")
-        for self.item in self.temp:
-            if not (self.item):
+        temp = args.split("\n")
+        for item in temp:
+            if not item:
                 continue
-            if (self.item[0] == "#"):
+            if item[0] == "#":
                 continue
-            if ("Drone-Name" in self.item):
-                self.cdrone = self.item.split("=")[1].strip()
-            if ("Drone-IP" in self.item):
-                self.cip = self.item.split("=")[1].strip()
-            if ("Drone-Enable-InAdress" in self.item):
-                self.cinadress = self.item.split("=")[1].strip()
-            if ("Drone-Enable-OutAdress" in self.item):
-                self.coutadress = self.item.split("=")[1].strip()
-            if ("Drone-Insert" in self.item):
+            if "Drone-Name" in item:
+                self.cdrone = item.split("=")[1].strip()
+            if "Drone-IP" in item:
+                self.cip = item.split("=")[1].strip()
+            if "Drone-Enable-InAdress" in item:
+                self.cinadress = item.split("=")[1].strip()
+            if "Drone-Enable-OutAdress" in item:
+                self.coutadress = item.split("=")[1].strip()
+            if "Drone-Insert" in item:
                 print "Adding Drone: " + self.cdrone
                 self.SessionMgr.NewSession(self.cdrone, self.cip, self.cinadress, self.coutadress, self.CP, self)
                 self.cip = ""

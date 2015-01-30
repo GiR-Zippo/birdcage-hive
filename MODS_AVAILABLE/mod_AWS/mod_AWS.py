@@ -19,7 +19,7 @@
 
 import CP
 import boto.ec2
-from SYSTEM.CONFIG import Config
+from SYSTEM import CONFIG
 import threading
 import time
 
@@ -133,16 +133,21 @@ class AWS:
             iAck  = args[len(args.split(" ")[0])+1:]
             while True:
                 if (self._getInstanceByName(iName) != None):
-                    iAck = self.Interpreter(iAck, "IP", self._getInstanceByName(iName).ip_address)
-                    break
-            self.CP.command(iAck, "NULL")
+                    if "running" in str(self._getInstanceByName(iName)._state):
+                        if str(self._getInstanceByName(iName).ip_address) != "None":
+                            iAck = self.Interpreter(iAck, "IP", self._getInstanceByName(iName).ip_address)
+                            self.CP.command(iAck, "NULL")
+                            break
         return
 
+    def temp(self):
+        print "hhhh" + self._getInstanceByName("B1").ip_address
+        return
     #Ersetze den type
-    def Interpreter(self, input, type, arg):
-        if ("IP" == type):
-            input = input.replace('&IP', arg)
-        return input
+    def Interpreter(self, minput, mtype, arg):
+        if ("IP" == mtype):
+            minput = minput.replace('&IP', str(arg))
+        return minput
 
     '''
     Das bedarf einer gaaaaaanz gründlichen Überarbeitung
@@ -250,7 +255,7 @@ class Master:
         return
 
     def config(self, args, CP):
-        config = Config("./CONFIGS/mod_AWS.conf")
+        config = CONFIG.Config("./CONFIGS/mod_AWS.conf")
         #self.PATH = config.GetItem('data-folder')
         self.region = config.GetItem("region")
         self.aws_access_key_id = config.GetItem("aws_access_key_id")
@@ -262,6 +267,7 @@ class Master:
         if omv[0] == address:
             if omv[1] == "1":
                 self.AWS.GetStatus(handler)
+                print self.AWS.temp()
                 return
 
             #Die Commands können nicht von der Console abgearbeitet werden, würde tödlich ausgehen

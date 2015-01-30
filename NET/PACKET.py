@@ -17,72 +17,12 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 
-import zlib
 import StringIO
 import struct
+from SYSTEM.ZIPStream import ZipInputStream
 from Crypto.Cipher import ARC4
 from Crypto.Cipher import CAST
 from Crypto import Random
-
-#################################################
-####      Decompressor for Input Stream      ####
-#################################################
-class ZipInputStream:
-
-    def __init__(self, file):
-        self.file = file
-        self.__rewind()
-
-    def __rewind(self):
-        self.zip = zlib.decompressobj()
-        self.pos = 0 # position in zipped stream
-        self.offset = 0 # position in unzipped stream
-        self.data = ""
-
-    def __fill(self, bytes):
-        if self.zip:
-            # read until we have enough bytes in the buffer
-            while not bytes or len(self.data) < bytes:
-                self.file.seek(self.pos)
-                data = self.file.read(16384)
-                if not data:
-                    self.data = self.data + self.zip.flush()
-                    self.zip = None # no more data
-                    break
-                self.pos = self.pos + len(data)
-                try:
-                    self.data = self.data + self.zip.decompress(data)
-                except:
-                    return
-
-    def seek(self, offset, whence=0):
-        if whence == 0:
-            position = offset
-        elif whence == 1:
-            position = self.offset + offset
-        else:
-            raise IOError, "Illegal argument"
-        if position < self.offset:
-            raise IOError, "Cannot seek backwards"
-
-        # skip forward, in 16k blocks
-        while position > self.offset:
-            if not self.read(min(position - self.offset, 16384)):
-                break
-
-    def tell(self):
-        return self.offset
-
-    def read(self, bytes = 0):
-        self.__fill(bytes)
-        if bytes:
-            data = self.data[:bytes]
-            self.data = self.data[bytes:]
-        else:
-            data = self.data
-            self.data = ""
-        self.offset = self.offset + len(data)
-        return data
 
 #################################################
 ####            Header and Packet            ####
@@ -117,7 +57,7 @@ class Packet:
     #En-/De-Cryption
     def Encrypt(self, digestA, pbk):
         cryp = ARC4.new(digestA)
-        data = zlib.compress(self.content)
+        data = ZipInputStream(self.content, True).compress()
         data = cryp.encrypt(data)
         iv = Random.new().read(CAST.block_size)
         cipher = CAST.new(pbk, CAST.MODE_OPENPGP, iv)
@@ -204,7 +144,7 @@ class Packet:
 
     def GetUint32(self):
         self.out = ''
-        for data in range(0,4):
+        for data in range(0, 4):
             self.out = self.out + self.content[data]
         self.content = self.content[4:]
         return struct.unpack('!I', self.out)
@@ -212,7 +152,6 @@ class Packet:
     def GetString(self):
         strlen = ord(self.content[0])
         self.content = self.content[1:]
-        print self.content[:strlen]
         self.content = self.content[strlen:]
         return
 
